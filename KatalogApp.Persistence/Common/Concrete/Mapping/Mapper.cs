@@ -1,0 +1,27 @@
+﻿using System.Collections.Generic;
+using KatalogApp.Application.Common.Abstractions.Mapper;
+
+namespace KatalogApp.Persistence.Common.Concrete.Mapping
+{
+    public sealed class Mapper : IMapper
+    {
+        private readonly AutoMapper.IMapper _mapper;
+        public Mapper(AutoMapper.IMapper mapper) => _mapper = mapper;
+
+        public TDest Map<TDest, TSrc>(TSrc src)
+            => _mapper.Map<TSrc, TDest>(src);
+
+        public List<TDest> Map<TDest, TSrc>(IEnumerable<TSrc> src)
+            => _mapper.Map<List<TDest>>(src);
+
+        public TDest Map<TDest>(object src)
+            => _mapper.Map<TDest>(src);
+
+        public TDest Map<TSrc, TDest>(TSrc src)
+            where TDest : new()
+            => _mapper.Map(src, new TDest());
+
+        public TDest Map<TSrc, TDest>(TSrc source, TDest destination)
+            => _mapper.Map(source, destination);
+    }
+}

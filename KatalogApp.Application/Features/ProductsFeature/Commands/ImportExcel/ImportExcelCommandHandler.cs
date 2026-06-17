@@ -312,8 +312,8 @@ namespace KatalogApp.Application.Features.ProductsFeature.Commands.ImportExcel
             if (upper.Contains("RING") && !upper.Contains("EARRING")) return "YÜZÜK";
             if (upper == "1") return "YÜZÜK";
             if (upper.Contains("EARRING")) return "KÜPE";
-            if (upper.Contains("NECKLACE") || upper.Contains("PENDANT")) return "KOLYE";
-            if (upper.Contains("BRACELET") || upper.Contains("ŞAHMERAN") || upper.Contains("SAHMERAN")) return "BİLEKLİK";
+            if (upper.Contains("NECKLACE") || upper.Contains("NEACKLACE") || upper.Contains("PENDANT")) return "KOLYE";
+            if (upper.Contains("BRACELET") || upper.Contains("BRACLET") || upper.Contains("BRACLETE") || upper.Contains("ŞAHMERAN") || upper.Contains("SAHMERAN")) return "BİLEKLİK";
             if (upper.Contains("BANGLE")) return "KELEPÇE";
             if (upper.Contains("SET")) return "SET";
             

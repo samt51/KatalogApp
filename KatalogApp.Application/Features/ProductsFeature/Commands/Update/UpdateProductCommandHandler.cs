@@ -30,6 +30,7 @@ namespace KatalogApp.Application.Features.ProductsFeature.Commands.Update
                 include: q => q.Include(x => x.ProductStones).ThenInclude(ps => ps.Stone)
                                .Include(x => x.ProductMetals)
                                .Include(x => x.Images)
+                               .Include(x => x.Categories)
             );
             if(entity == null) return new ResponseDto<bool>().Fail("Ürün bulunamadı");
 
@@ -39,12 +40,23 @@ namespace KatalogApp.Application.Features.ProductsFeature.Commands.Update
             entity.Gram = request.Gram;
             entity.MetalPurityId = request.MetalPurityId;
             entity.DiamondCarat = request.DiamondCarat;
-            entity.CategoryId = request.CategoryId;
             entity.MetalColorId = request.MetalColorId;
             entity.LaborMultiplier = request.LaborMultiplier;
             entity.PolishingCost = request.PolishingCost;
             entity.LiveGoldPrice = request.LiveGoldPrice;
             entity.ModifyDate = System.DateTime.Now;
+
+            // Update Categories
+            entity.Categories.Clear();
+            if (request.CategoryIds != null && request.CategoryIds.Count > 0)
+            {
+                var categories = await _unitOfWork.GetReadRepository<KatalogApp.Domain.Entities.Category>()
+                    .GetAllAsync(c => request.CategoryIds.Contains(c.Id) && !c.IsDeleted);
+                foreach (var cat in categories)
+                {
+                    entity.Categories.Add(cat);
+                }
+            }
 
             // Update Stones
             if (request.ProductStones != null)

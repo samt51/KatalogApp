@@ -122,7 +122,7 @@ namespace KatalogApp.Infrastructure.Services
                 decimal polishingCost = product.PolishingCost;
                 if (userId.HasValue)
                 {
-                    var customPolish = customPolishing.FirstOrDefault(p => p.CategoryId == product.CategoryId);
+                    var customPolish = customPolishing.FirstOrDefault(p => product.Categories != null && product.Categories.Any(c => c.Id == p.CategoryId));
                     if (customPolish == null) customPolish = customPolishing.FirstOrDefault(p => p.CategoryId == null); // Fallback to all categories
                     
                     if (customPolish != null && customPolish.CustomPrice > 0)

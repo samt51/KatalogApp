@@ -20,7 +20,7 @@ namespace KatalogApp.Api.Controllers
         }
 
         [HttpPost("upload")]
-        public async Task<IActionResult> Upload([FromForm] IFormFile file, [FromForm] int productId)
+        public async Task<IActionResult> Upload(IFormFile file, [FromForm] int productId)
         {
             if (file == null || file.Length == 0)
                 return BadRequest("Geçersiz dosya.");
@@ -51,7 +51,7 @@ namespace KatalogApp.Api.Controllers
         }
 
         [HttpPost("upload-temp")]
-        public async Task<IActionResult> UploadTemp([FromForm] IFormFile file)
+        public async Task<IActionResult> UploadTemp(IFormFile file)
         {
             if (file == null || file.Length == 0)
                 return BadRequest("Geçersiz dosya.");

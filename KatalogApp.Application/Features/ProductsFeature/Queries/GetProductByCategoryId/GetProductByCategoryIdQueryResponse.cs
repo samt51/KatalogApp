@@ -14,10 +14,10 @@ namespace KatalogApp.Application.Features.ProductsFeature.Queries.GetProductByCa
         public int? MetalPurityId { get; set; }
         public string? MetalPurityName { get; set; }
         public decimal DiamondCarat { get; set; }
-        public int CategoryId { get; set; }
+        public List<int> CategoryIds { get; set; } = new List<int>();
         public int? MetalColorId { get; set; }
         public int? StoneColorId { get; set; }
-        public string CategoryName { get; set; }
+        public List<string> CategoryNames { get; set; } = new List<string>();
         public string? MetalColorName { get; set; }
         public string? StoneColorName { get; set; }
         public decimal CalculatedPrice { get; set; }
@@ -25,11 +25,7 @@ namespace KatalogApp.Application.Features.ProductsFeature.Queries.GetProductByCa
 
         public List<string> Images { get; set; }
         
-        // Diðer Entity'ler için Dto'lar boþ gelirse diye, 
-        // AutoMapper ile otomatik maplenecek kýsýmlar:
-        
         public ICollection<ProductStoneDto> ProductStones { get; set; }
         public ICollection<ProductMetalDto> ProductMetals { get; set; }
     }
 }
-

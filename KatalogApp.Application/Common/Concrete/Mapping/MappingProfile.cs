@@ -37,7 +37,7 @@ namespace KatalogApp.Application.Common.Concrete.Mapping
             CreateMap<Products, KatalogApp.Application.Features.ProductsFeature.Queries.GetProductByCategoryId.GetProductByCategoryIdQueryResponse>()
                 .ForMember(dest => dest.MetalPurityName, opt => opt.MapFrom(src => src.MetalPurity != null ? src.MetalPurity.Name : ""))
                   .ForMember(dest => dest.MetalColorName, opt => opt.MapFrom(src => src.MetalColor != null ? src.MetalColor.Name : ""))
-                .ForMember(dest => dest.CategoryName, opt => opt.MapFrom(src => src.Category != null ? src.Category.Name : ""))
+                .ForMember(dest => dest.CategoryNames, opt => opt.MapFrom(src => src.Categories.Select(c => c.Name).ToList()))
                 .ForMember(dest => dest.Images, opt => opt.MapFrom(src => src.Images.Select(i => i.ImageName).ToList()));
             CreateMap<ProductStone, KatalogApp.Application.Features.ProductStoneFeature.Dtos.ProductStoneDto>().ReverseMap();
             CreateMap<ProductStone, KatalogApp.Application.Features.ProductsFeature.Dtos.ProductStoneDto>()

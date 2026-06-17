@@ -12,7 +12,7 @@ namespace KatalogApp.Application.Features.ProductsFeature.Commands.Update
         public decimal Gram { get; set; }
         public int? MetalPurityId { get; set; }
         public decimal DiamondCarat { get; set; }
-        public int CategoryId { get; set; }
+        public List<int> CategoryIds { get; set; } = new List<int>();
         public int? ClarityId { get; set; }
         public int? MetalColorId { get; set; }
         public int? StoneColorId { get; set; }

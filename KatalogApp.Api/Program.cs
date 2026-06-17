@@ -11,9 +11,8 @@ System.Globalization.CultureInfo.DefaultThreadCurrentUICulture = cultureInfo;
 
 builder.Services.AddControllers();
 builder.Services.AddHttpContextAccessor();
-builder.Services.AddOpenApi();
+builder.Services.AddSwaggerGen();
 builder.Services.AddPersistenceRegistration(builder.Configuration);
-// Need to add Application registration for MediatR
 builder.Services.AddApplicationRegistration();
 builder.Services.AddInfrastructureRegistration();
 
@@ -29,14 +28,23 @@ var app = builder.Build();
 
 using (var scope = app.Services.CreateScope())
 {
-    var dbContext = scope.ServiceProvider.GetRequiredService<KatalogApp.Persistence.Context.KatalogAppDbContext>();
-    dbContext.Database.Migrate();
+    var services = scope.ServiceProvider;
+    try
+    {
+        var dbContext = services.GetRequiredService<KatalogApp.Persistence.Context.KatalogAppDbContext>();
+        // Eğer veritabanı yoksa otomatik oluşturur ve tüm bekleyen migration'ları uygular.
+        // Hangi ortamda (Production/Development) çalışıyorsa, o ortamın appsettings.json dosyasındaki DB ismini baz alır.
+        dbContext.Database.Migrate();
+    }
+    catch (Exception ex)
+    {
+        var logger = services.GetRequiredService<ILogger<Program>>();
+        logger.LogError(ex, "Veritabanı oluşturulurken veya migration uygulanırken bir hata oluştu.");
+    }
 }
 
-if (app.Environment.IsDevelopment())
-{
-    app.MapOpenApi();
-}
+app.UseSwagger();
+app.UseSwaggerUI();
 
 app.UseHttpsRedirection();
 app.UseStaticFiles();

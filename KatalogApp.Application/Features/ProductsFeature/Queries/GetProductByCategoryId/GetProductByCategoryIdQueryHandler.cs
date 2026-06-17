@@ -32,9 +32,9 @@ namespace KatalogApp.Application.Features.ProductsFeature.Queries.GetProductByCa
         public async Task<ResponseDto<List<GetProductByCategoryIdQueryResponse>>> Handle(GetProductByCategoryIdQueryRequest request, CancellationToken cancellationToken)
         {
             var products = await _unitOfWork.GetReadRepository<Products>().GetAllAsync(
-                predicate: x => !x.IsDeleted && x.CategoryId == request.CategoryId,
+                predicate: x => !x.IsDeleted && x.Categories.Any(c => c.Id == request.CategoryId),
                 include: q => q
-                    .Include(p => p.Category)
+                    .Include(p => p.Categories)
                     .Include(p => p.MetalPurity)
                     .Include(p => p.MetalColor)
                     .Include(p => p.Images)

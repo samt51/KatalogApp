@@ -44,10 +44,8 @@ namespace KatalogApp.Domain.Entities
         public decimal SettingCost { get; set; }
         public decimal TotalCost { get; set; }
 
-        /// <summary>Ürünün bağlı olduğu kategorinin ID'si.</summary>
-        public int CategoryId { get; set; }
-        /// <summary>Ürün-Kategori ilişkisi.</summary>
-        public virtual Category? Category { get; set; }
+        /// <summary>Ürünün bağlı olduğu kategoriler.</summary>
+        public virtual ICollection<Category> Categories { get; set; }
 
         /// <summary>Ürünün ana kaplama/maden rengi ID'si (Örn: Beyaz Altın rengi ID'si).</summary>
         public int? MetalColorId { get; set; }
@@ -72,6 +70,7 @@ namespace KatalogApp.Domain.Entities
             Images = new HashSet<ProductImage>();
             ProductStones = new HashSet<ProductStone>();
             ProductMetals = new HashSet<ProductMetal>();
+            Categories = new HashSet<Category>();
         }
     }
 }

@@ -33,7 +33,7 @@ namespace KatalogApp.Application.Features.ProductsFeature.Queries
             {
                 var products = await _unitOfWork.GetReadRepository<Products>().GetAllAsync(
                     predicate: x => !x.IsDeleted,
-                    include: q => q.Include(p => p.Category)
+                    include: q => q.Include(p => p.Categories)
                                    .Include(p => p.MetalPurity)
                                    .Include(p => p.ProductStones).ThenInclude(ps => ps.Stone).ThenInclude(s => s.StoneScale)
                                    .Include(p => p.ProductStones).ThenInclude(ps => ps.Color)
@@ -89,8 +89,8 @@ namespace KatalogApp.Application.Features.ProductsFeature.Queries
                         MetalPurityId = p.MetalPurityId,
                         MetalPurityName = p.MetalPurity?.Name ?? "",
                         DiamondCarat = p.DiamondCarat,
-                        CategoryId = p.CategoryId,
-                        CategoryName = p.Category?.Name ?? "",
+                        CategoryIds = p.Categories?.Select(c => c.Id).ToList() ?? new List<int>(),
+                        CategoryNames = p.Categories?.Select(c => c.Name).ToList() ?? new List<string>(),
                         MetalColorId = p.MetalColorId,
                         LaborMultiplier = p.LaborMultiplier,
                         PolishingCost = p.PolishingCost,

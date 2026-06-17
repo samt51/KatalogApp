@@ -4,6 +4,7 @@ using KatalogApp.Persistence.Context;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace KatalogApp.Persistence.Migrations
 {
     [DbContext(typeof(KatalogAppDbContext))]
-    partial class KatalogAppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260616160025_AddStoneScalesSeed")]
+    partial class AddStoneScalesSeed
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder

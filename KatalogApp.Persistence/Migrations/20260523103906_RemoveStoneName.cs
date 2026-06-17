@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore.Migrations;
+using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
 
@@ -13,34 +13,6 @@ namespace KatalogApp.Persistence.Migrations
             migrationBuilder.DropColumn(
                 name: "Name",
                 table: "Stones");
-
-            migrationBuilder.UpdateData(
-                table: "Stones",
-                keyColumn: "Id",
-                keyValue: 1,
-                column: "StoneScaleId",
-                value: 1);
-
-            migrationBuilder.UpdateData(
-                table: "Stones",
-                keyColumn: "Id",
-                keyValue: 2,
-                column: "StoneScaleId",
-                value: 2);
-
-            migrationBuilder.UpdateData(
-                table: "Stones",
-                keyColumn: "Id",
-                keyValue: 3,
-                column: "StoneScaleId",
-                value: 3);
-
-            migrationBuilder.UpdateData(
-                table: "Stones",
-                keyColumn: "Id",
-                keyValue: 4,
-                column: "StoneScaleId",
-                value: 4);
         }
 
         /// <inheritdoc />

@@ -38,6 +38,13 @@ namespace KatalogApp.Api.Controllers
             return Ok(response);
         }
 
+        [HttpPost("import-excel")]
+        public async Task<IActionResult> ImportExcel()
+        {
+            var response = await _mediator.Send(new KatalogApp.Application.Features.ProductsFeature.Commands.ImportExcel.ImportExcelCommandRequest());
+            return Ok(response);
+        }
+
         [HttpPost]
         public async Task<IActionResult> Create(CreateProductCommandRequest request)
         {

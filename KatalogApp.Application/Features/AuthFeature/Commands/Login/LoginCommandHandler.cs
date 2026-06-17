@@ -1,4 +1,4 @@
-﻿using KatalogApp.Application.Common.Abstractions.UnitOfWorks;
+using KatalogApp.Application.Common.Abstractions.UnitOfWorks;
 using KatalogApp.Application.Core.Dtos;
 using KatalogApp.Application.Helpers;
 using KatalogApp.Domain.Entities;
@@ -24,8 +24,13 @@ namespace KatalogApp.Application.Features.AuthFeature.Commands.Login
 
         public async Task<ResponseDto<string>> Handle(LoginCommandRequest request, CancellationToken cancellationToken)
         {
+            if (request == null || string.IsNullOrEmpty(request.Email) || string.IsNullOrEmpty(request.Password))
+            {
+                return new ResponseDto<string>().Fail("E-Posta veya Şifre boş olamaz.");
+            }
+
             var readRepo = _unitOfWork.GetReadRepository<Users>();
-            var user = await readRepo.GetAsync(u => u.Email == request.Email && u.Password == PasswordHash.HashPassword(request.Password));
+            var user = await readRepo.FindAsync(u => u.Email == request.Email && u.Password == PasswordHash.HashPassword(request.Password));
 
             if (user == null)
             {

@@ -36,13 +36,22 @@ namespace KatalogApp.Application.Features.ProductsFeature.Commands.Create
                 Gram = request.Gram,
                 MetalPurityId = request.MetalPurityId,
                 DiamondCarat = request.DiamondCarat,
-                CategoryId = request.CategoryId,
                 MetalColorId = request.MetalColorId,
                 LaborMultiplier = request.LaborMultiplier,
                 PolishingCost = request.PolishingCost,
                 LiveGoldPrice = request.LiveGoldPrice,
                 CurrencyId = 1
             };
+
+            if (request.CategoryIds != null && request.CategoryIds.Count > 0)
+            {
+                var categories = await _unitOfWork.GetReadRepository<KatalogApp.Domain.Entities.Category>()
+                    .GetAllAsync(c => request.CategoryIds.Contains(c.Id) && !c.IsDeleted);
+                foreach (var cat in categories)
+                {
+                    entity.Categories.Add(cat);
+                }
+            }
             
             if (request.ProductStones != null && request.ProductStones.Count > 0)
             {

@@ -10,7 +10,8 @@ namespace KatalogApp.Persistence
         public static void AddPersistenceRegistration(this IServiceCollection services, IConfiguration configuration)
         {
             services.AddDbContext<KatalogAppDbContext>(options =>
-                options.UseSqlServer(configuration.GetConnectionString("DefaultConnection"))
+                options.UseSqlServer(configuration.GetConnectionString("DefaultConnection"),
+                    sqlServerOptions => sqlServerOptions.CommandTimeout(600))
                        .ConfigureWarnings(warnings => warnings.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.PendingModelChangesWarning)));
 
             services.AddAutoMapper(typeof(KatalogApp.Application.Registration), typeof(KatalogApp.Persistence.Registration));

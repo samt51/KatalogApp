@@ -18,9 +18,9 @@ namespace KatalogApp.Api.Controllers
         }
 
         [HttpGet]
-        public async Task<IActionResult> GetAll()
+        public async Task<IActionResult> GetAll([FromQuery] GetAllProductsQueryRequest request)
         {
-            var response = await _mediator.Send(new GetAllProductsQueryRequest());
+            var response = await _mediator.Send(request ?? new GetAllProductsQueryRequest());
             return Ok(response);
         }
 

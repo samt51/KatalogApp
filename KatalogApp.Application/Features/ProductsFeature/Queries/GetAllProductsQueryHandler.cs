@@ -32,7 +32,15 @@ namespace KatalogApp.Application.Features.ProductsFeature.Queries
             try
             {
                 var products = await _unitOfWork.GetReadRepository<Products>().GetAllAsync(
-                    predicate: x => !x.IsDeleted,
+                    predicate: x => !x.IsDeleted &&
+                                    (string.IsNullOrEmpty(request.Code) || x.Code.Contains(request.Code) || x.Name.Contains(request.Code)) &&
+                                    (string.IsNullOrEmpty(request.Category) || x.Categories.Any(c => c.Name.Contains(request.Category))) &&
+                                    (!request.MinGram.HasValue || x.Gram >= request.MinGram.Value) &&
+                                    (!request.MaxGram.HasValue || x.Gram <= request.MaxGram.Value) &&
+                                    (!request.MetalTypeId.HasValue || x.ProductMetals.Any(pm => !pm.IsDeleted && pm.MetalTypeId == request.MetalTypeId.Value)) &&
+                                    (!request.ClarityId.HasValue || x.ProductStones.Any(ps => !ps.IsDeleted && ps.ClarityId == request.ClarityId.Value)) &&
+                                    (!request.StoneId.HasValue || x.ProductStones.Any(ps => !ps.IsDeleted && ps.StoneId == request.StoneId.Value)) &&
+                                    (!request.StoneTypeId.HasValue || x.ProductStones.Any(ps => !ps.IsDeleted && ps.Stone != null && ps.Stone.StoneTypeId == request.StoneTypeId.Value)),
                     include: q => q.Include(p => p.Categories)
                                    .Include(p => p.MetalPurity)
                                    .Include(p => p.ProductStones).ThenInclude(ps => ps.Stone).ThenInclude(s => s.StoneScale)

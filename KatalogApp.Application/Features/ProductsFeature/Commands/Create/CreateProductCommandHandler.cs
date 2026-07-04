@@ -51,7 +51,7 @@ namespace KatalogApp.Application.Features.ProductsFeature.Commands.Create
             if (request.CategoryIds != null && request.CategoryIds.Count > 0)
             {
                 var categories = await _unitOfWork.GetReadRepository<KatalogApp.Domain.Entities.Category>()
-                    .GetAllAsync(c => request.CategoryIds.Contains(c.Id) && !c.IsDeleted);
+                    .GetAllAsync(c => request.CategoryIds.Contains(c.Id) && !c.IsDeleted, enableTracking: true);
                 foreach (var cat in categories)
                 {
                     entity.Categories.Add(cat);

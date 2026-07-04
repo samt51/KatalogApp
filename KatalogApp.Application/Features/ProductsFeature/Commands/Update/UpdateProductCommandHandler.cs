@@ -1,4 +1,4 @@
-using System.Threading;
+﻿using System.Threading;
 using System.Threading.Tasks;
 using MediatR;
 using Microsoft.EntityFrameworkCore;
@@ -24,19 +24,20 @@ namespace KatalogApp.Application.Features.ProductsFeature.Commands.Update
             var repo = _unitOfWork.GetWriteRepository<KatalogApp.Domain.Entities.Products>();
             var readRepo = _unitOfWork.GetReadRepository<KatalogApp.Domain.Entities.Products>();
             
-            // Taşları, madenleri ve resimleri dahil ederek ürünü çekiyoruz
+            // TaÅŸlarÄ±, madenleri ve resimleri dahil ederek Ã¼rÃ¼nÃ¼ Ã§ekiyoruz
             var entity = await readRepo.GetAsync(
                 p => p.Id == request.Id,
                 include: q => q.Include(x => x.ProductStones).ThenInclude(ps => ps.Stone)
                                .Include(x => x.ProductMetals)
                                .Include(x => x.Images)
-                               .Include(x => x.Categories)
+                               .Include(x => x.Categories), 
+                enableTracking: true
             );
-            if(entity == null) return new ResponseDto<bool>().Fail("Ürün bulunamadı");
+            if(entity == null) return new ResponseDto<bool>().Fail("ÃœrÃ¼n bulunamadÄ±");
             
             if (request.CategoryIds == null || request.CategoryIds.Count == 0 || request.CategoryIds.All(x => x == 0))
             {
-                return new ResponseDto<bool>().Fail("Lütfen ürün için geçerli bir kategori seçiniz!");
+                return new ResponseDto<bool>().Fail("LÃ¼tfen Ã¼rÃ¼n iÃ§in geÃ§erli bir kategori seÃ§iniz!");
             }
 
             entity.Code = request.Code;
@@ -51,16 +52,30 @@ namespace KatalogApp.Application.Features.ProductsFeature.Commands.Update
             entity.LiveGoldPrice = request.LiveGoldPrice;
             entity.ModifyDate = System.DateTime.Now;
 
-            // Update Categories
-            entity.Categories.Clear();
-            if (request.CategoryIds != null && request.CategoryIds.Count > 0)
+                        // Update Categories
+            if (request.CategoryIds != null)
             {
-                var categories = await _unitOfWork.GetReadRepository<KatalogApp.Domain.Entities.Category>()
-                    .GetAllAsync(c => request.CategoryIds.Contains(c.Id) && !c.IsDeleted);
-                foreach (var cat in categories)
+                var existingCategoryIds = entity.Categories.Select(c => c.Id).ToList();
+                var toRemove = entity.Categories.Where(c => !request.CategoryIds.Contains(c.Id)).ToList();
+                foreach(var cat in toRemove)
                 {
-                    entity.Categories.Add(cat);
+                    entity.Categories.Remove(cat);
                 }
+                
+                if (request.CategoryIds.Count > 0)
+                {
+                    var categoriesToAdd = await _unitOfWork.GetReadRepository<KatalogApp.Domain.Entities.Category>()
+                        .GetAllAsync(c => request.CategoryIds.Contains(c.Id) && !existingCategoryIds.Contains(c.Id) && !c.IsDeleted);
+                        
+                    foreach (var cat in categoriesToAdd)
+                    {
+                        entity.Categories.Add(cat);
+                    }
+                }
+            }
+            else
+            {
+                entity.Categories.Clear();
             }
 
             // Update Stones
@@ -168,7 +183,7 @@ namespace KatalogApp.Application.Features.ProductsFeature.Commands.Update
                 }
             }
             
-            // Ürün özellikleri değiştiği için maliyetleri tekrar hesaplayıp statik alanlara kaydet
+            // ÃœrÃ¼n Ã¶zellikleri deÄŸiÅŸtiÄŸi iÃ§in maliyetleri tekrar hesaplayÄ±p statik alanlara kaydet
             await _pricingService.CalculatePriceAsync(entity);
 
             await repo.UpdateAsync(entity, cancellationToken);
@@ -178,5 +193,8 @@ namespace KatalogApp.Application.Features.ProductsFeature.Commands.Update
         }
     }
 }
+
+
+
 
 

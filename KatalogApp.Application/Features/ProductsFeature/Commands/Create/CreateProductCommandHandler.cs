@@ -23,7 +23,12 @@ namespace KatalogApp.Application.Features.ProductsFeature.Commands.Create
             var exists = await _unitOfWork.GetReadRepository<KatalogApp.Domain.Entities.Products>().FindAsync(x => x.Code == request.Code&&!x.IsDeleted);
             if (exists != null)
             {
-                throw new System.Exception("Bu ürün kodu ile daha önce bir ürün eklenmiş!");
+                return new ResponseDto<bool>().Fail("Bu ürün kodu ile daha önce bir ürün eklenmiş!");
+            }
+
+            if (request.CategoryIds == null || request.CategoryIds.Count == 0 || request.CategoryIds.All(x => x == 0))
+            {
+                return new ResponseDto<bool>().Fail("Lütfen ürün için geçerli bir kategori seçiniz!");
             }
 
             var entity = new KatalogApp.Domain.Entities.Products 

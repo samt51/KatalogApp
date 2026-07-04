@@ -87,7 +87,7 @@ namespace KatalogApp.Infrastructure.Services
                         if (stoneLot == null || stoneLot.StoneSetting == null)
                         {
                             stoneLot = await _unitOfWork.GetReadRepository<Stone>()
-                                .GetAsync(s => s.Id == productStone.StoneId, include: i => i.Include(x => x.StoneSetting));
+                                .GetAsync(s => s.Id == productStone.StoneId, include: i => i.Include(x => x.StoneSetting).ThenInclude(x => x.Unit));
                         }
 
                         if (stoneLot != null)

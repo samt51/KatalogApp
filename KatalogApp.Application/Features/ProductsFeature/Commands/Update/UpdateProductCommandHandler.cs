@@ -33,6 +33,11 @@ namespace KatalogApp.Application.Features.ProductsFeature.Commands.Update
                                .Include(x => x.Categories)
             );
             if(entity == null) return new ResponseDto<bool>().Fail("Ürün bulunamadı");
+            
+            if (request.CategoryIds == null || request.CategoryIds.Count == 0 || request.CategoryIds.All(x => x == 0))
+            {
+                return new ResponseDto<bool>().Fail("Lütfen ürün için geçerli bir kategori seçiniz!");
+            }
 
             entity.Code = request.Code;
             entity.Name = request.Name;

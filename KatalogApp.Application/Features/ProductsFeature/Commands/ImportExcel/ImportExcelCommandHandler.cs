@@ -5,11 +5,6 @@ using KatalogApp.Application.Common.Abstractions.UnitOfWorks;
 using KatalogApp.Application.Excel;
 using KatalogApp.Domain.Entities;
 using MediatR;
-using Microsoft.EntityFrameworkCore;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
 
 namespace KatalogApp.Application.Features.ProductsFeature.Commands.ImportExcel
 {

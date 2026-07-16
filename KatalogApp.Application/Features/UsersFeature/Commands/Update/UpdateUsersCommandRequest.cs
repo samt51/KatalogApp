@@ -19,6 +19,7 @@ namespace KatalogApp.Application.Features.UsersFeature.Commands.Update
 
         public decimal? CustomMilyem { get; set; }
         public decimal? SalesMultiplier { get; set; }
+        public bool ClearCustomPricing { get; set; }
         public System.Collections.Generic.List<Dtos.UserStonePriceDto>? CustomStonePrices { get; set; }
         public System.Collections.Generic.List<Dtos.UserPolishingCostDto>? CustomPolishingCosts { get; set; }
         public System.Collections.Generic.List<Dtos.UserSettingPriceDto>? CustomSettingPrices { get; set; }

@@ -44,6 +44,9 @@ namespace KatalogApp.Application.Features.UsersFeature.Commands.Create
             if (request.CustomPolishingCosts != null && request.CustomPolishingCosts.Any()) {
                 map.CustomPolishingCosts = request.CustomPolishingCosts.Select(x => new UserPolishingCost { CategoryId = x.CategoryId, CustomPrice = x.CustomPrice }).ToList();
             }
+            if (request.CustomSettingPrices != null && request.CustomSettingPrices.Any()) {
+                map.UserSettingPrices = request.CustomSettingPrices.Select(x => new UserSettingPrice { StoneSettingId = x.StoneSettingId, CustomPrice = x.CustomPrice }).ToList();
+            }
 
             await _unitOfWork.GetWriteRepository<Users>().AddAsync(map, cancellationToken);
             await _unitOfWork.SaveAsync(cancellationToken);

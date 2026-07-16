@@ -18,14 +18,12 @@ namespace KatalogApp.Application.Features.ProductsFeature.Queries
     {
         private readonly IUnitOfWork _unitOfWork;
         private readonly KatalogApp.Application.Interfaces.Services.IPricingService _pricingService;
-        private readonly KatalogApp.Application.Interfaces.Services.IExchangeRateService _exchangeRateService;
         private readonly IHttpContextAccessor _httpContextAccessor;
 
-        public GetAllProductsQueryHandler(IUnitOfWork unitOfWork, KatalogApp.Application.Interfaces.Services.IPricingService pricingService, KatalogApp.Application.Interfaces.Services.IExchangeRateService exchangeRateService, IHttpContextAccessor httpContextAccessor)
+        public GetAllProductsQueryHandler(IUnitOfWork unitOfWork, KatalogApp.Application.Interfaces.Services.IPricingService pricingService, IHttpContextAccessor httpContextAccessor)
         {
             _unitOfWork = unitOfWork;
             _pricingService = pricingService;
-            _exchangeRateService = exchangeRateService;
             _httpContextAccessor = httpContextAccessor;
         }
 
@@ -33,12 +31,17 @@ namespace KatalogApp.Application.Features.ProductsFeature.Queries
         {
             try
             {
-                var products = await _unitOfWork.GetReadRepository<Products>().GetAllAsync(
+                if (request.Page < 1) request.Page = 1;
+                if (request.PageSize < 1) request.PageSize = 10;
+
+                var query = await _unitOfWork.GetReadRepository<Products>().GetAllQueryAsync(
                     predicate: x => !x.IsDeleted &&
                                     (string.IsNullOrEmpty(request.Code) || x.Code.Contains(request.Code) || x.Name.Contains(request.Code)) &&
                                     (string.IsNullOrEmpty(request.Category) || x.Categories.Any(c => c.Name.Contains(request.Category))) &&
                                     (!request.MinGram.HasValue || x.Gram >= request.MinGram.Value) &&
                                     (!request.MaxGram.HasValue || x.Gram <= request.MaxGram.Value) &&
+                                    (!request.MinPrice.HasValue || x.TotalCost >= request.MinPrice.Value) &&
+                                    (!request.MaxPrice.HasValue || x.TotalCost <= request.MaxPrice.Value) &&
                                     (!request.MetalTypeId.HasValue || x.ProductMetals.Any(pm => !pm.IsDeleted && pm.MetalTypeId == request.MetalTypeId.Value)) &&
                                     (!request.ClarityId.HasValue || x.ProductStones.Any(ps => !ps.IsDeleted && ps.ClarityId == request.ClarityId.Value)) &&
                                     (!request.StoneId.HasValue || x.ProductStones.Any(ps => !ps.IsDeleted && ps.StoneId == request.StoneId.Value)) &&
@@ -51,8 +54,16 @@ namespace KatalogApp.Application.Features.ProductsFeature.Queries
                                    .Include(p => p.ProductMetals).ThenInclude(pm => pm.MetalType)
                                    .Include(p => p.ProductMetals).ThenInclude(pm => pm.MetalPurity)
                                    .Include(p => p.Images),
-                    ct: cancellationToken
+                    cancellationToken: cancellationToken
                 );
+
+                var totalCount = await query.CountAsync(cancellationToken);
+                query = ApplyOrdering(query, request.ColumnIndex, request.OrderBy);
+
+                var products = await query
+                    .Skip((request.Page - 1) * request.PageSize)
+                    .Take(request.PageSize)
+                    .ToListAsync(cancellationToken);
 
                 int? currentUserId = null;
                 var userIdClaim = _httpContextAccessor.HttpContext?.User?.FindFirst(ClaimTypes.NameIdentifier);
@@ -84,9 +95,6 @@ namespace KatalogApp.Application.Features.ProductsFeature.Queries
                 var customPrices = await _pricingService.CalculateCustomerPricesAsync(products.ToList(), currentUserId);
 
                 var result = new List<ProductDto>();
-                // Get current live price to ensure frontend calculation is perfectly in sync
-                decimal currentHasPrice = await _exchangeRateService.GetHasAltinPriceAsync();
-
                 foreach (var p in products)
                 {
                     var dto = new ProductDto
@@ -105,7 +113,7 @@ namespace KatalogApp.Application.Features.ProductsFeature.Queries
                         MetalColorId = p.MetalColorId,
                         LaborMultiplier = p.LaborMultiplier,
                         PolishingCost = p.PolishingCost,
-                        LiveGoldPrice = currentHasPrice > 0 ? currentHasPrice : (p.LiveGoldPrice > 0 ? p.LiveGoldPrice : 150),
+                        LiveGoldPrice = p.LiveGoldPrice > 0 ? p.LiveGoldPrice : 150,
                         Images = p.Images?.Where(i => !i.IsDeleted).Select(i => i.ImageName).ToList() ?? new List<string>(),
                         ProductStones = p.ProductStones?.Where(ps => !ps.IsDeleted).Select(ps => new ProductStoneDto
                         {
@@ -135,12 +143,27 @@ namespace KatalogApp.Application.Features.ProductsFeature.Queries
                     result.Add(dto);
                 }
                 
-                return new ResponseDto<List<ProductDto>>().Success(result);
+                return new ResponseDto<List<ProductDto>>().Success(result, totalCount);
             }
             catch (System.Exception ex)
             {
                 throw;
             }
+        }
+
+        private static IQueryable<Products> ApplyOrdering(IQueryable<Products> query, int? columnIndex, string? orderBy)
+        {
+            var descending = string.Equals(orderBy, "desc", System.StringComparison.OrdinalIgnoreCase);
+
+            return columnIndex switch
+            {
+                1 => descending ? query.OrderByDescending(p => p.Name) : query.OrderBy(p => p.Name),
+                2 => descending ? query.OrderByDescending(p => p.Code) : query.OrderBy(p => p.Code),
+                4 => descending ? query.OrderByDescending(p => p.DiamondCarat) : query.OrderBy(p => p.DiamondCarat),
+                5 => descending ? query.OrderByDescending(p => p.Gram) : query.OrderBy(p => p.Gram),
+                6 => descending ? query.OrderByDescending(p => p.TotalCost) : query.OrderBy(p => p.TotalCost),
+                _ => descending ? query.OrderByDescending(p => p.Id) : query.OrderBy(p => p.Id)
+            };
         }
     }
 }

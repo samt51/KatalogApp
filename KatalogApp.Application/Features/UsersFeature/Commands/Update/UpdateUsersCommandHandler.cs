@@ -39,6 +39,31 @@ namespace KatalogApp.Application.Features.UsersFeature.Commands.Update
             if (request.SubscriptionEndDate.HasValue)
                 entity.SubscriptionEndDate = request.SubscriptionEndDate.Value;
 
+            if (request.ClearCustomPricing)
+            {
+                if (entity.PricingProfile != null)
+                {
+                    await _unitOfWork.GetWriteRepository<UserPricingProfile>().HardDeleteRangeAsync(new List<UserPricingProfile> { entity.PricingProfile });
+                    entity.PricingProfile = null;
+                }
+
+                if (entity.CustomStonePrices != null && entity.CustomStonePrices.Any())
+                    await _unitOfWork.GetWriteRepository<UserStonePrice>().HardDeleteRangeAsync(entity.CustomStonePrices.ToList());
+                entity.CustomStonePrices = new List<UserStonePrice>();
+
+                if (entity.CustomPolishingCosts != null && entity.CustomPolishingCosts.Any())
+                    await _unitOfWork.GetWriteRepository<UserPolishingCost>().HardDeleteRangeAsync(entity.CustomPolishingCosts.ToList());
+                entity.CustomPolishingCosts = new List<UserPolishingCost>();
+
+                if (entity.UserSettingPrices != null && entity.UserSettingPrices.Any())
+                    await _unitOfWork.GetWriteRepository<KatalogApp.Domain.Entities.UserSettingPrice>().HardDeleteRangeAsync(entity.UserSettingPrices.ToList());
+                entity.UserSettingPrices = new List<KatalogApp.Domain.Entities.UserSettingPrice>();
+
+                await _unitOfWork.GetWriteRepository<Users>().UpdateAsync(entity, cancellationToken);
+                await _unitOfWork.SaveAsync(cancellationToken);
+                return new ResponseDto<UpdateUsersCommandResponse>().Success();
+            }
+
 
             // Update Pricing Profile
             if (request.CustomMilyem.HasValue || request.SalesMultiplier.HasValue) {

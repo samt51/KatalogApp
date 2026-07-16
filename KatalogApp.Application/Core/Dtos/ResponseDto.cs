@@ -5,6 +5,7 @@ namespace KatalogApp.Application.Core.Dtos
     public class ResponseDto<T>
     {
         public T data { get; set; } = default!;
+        public int count { get; set; }
         public int statusCode { get; set; }
         public bool isSuccess { get; set; }
         public List<string> errors { get; set; } = new List<string>();
@@ -13,9 +14,9 @@ namespace KatalogApp.Application.Core.Dtos
         {
             return new ResponseDto<T> { data = default, statusCode = 200, isSuccess = true, errors = new List<string>() };
         }
-        public ResponseDto<T> Success(T data)
+        public ResponseDto<T> Success(T data, int count = 0)
         {
-            return new ResponseDto<T> { data = data, statusCode = 200, isSuccess = true, errors = new List<string>() };
+            return new ResponseDto<T> { data = data, count = count, statusCode = 200, isSuccess = true, errors = new List<string>() };
         }
         public ResponseDto<T> Fail(List<string> errors)
         {

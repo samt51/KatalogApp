@@ -11,12 +11,10 @@ namespace KatalogApp.Infrastructure.Services
 {
     public class PricingService : IPricingService
     {
-        private readonly IExchangeRateService _exchangeRateService;
         private readonly IUnitOfWork _unitOfWork;
 
-        public PricingService(IExchangeRateService exchangeRateService, IUnitOfWork unitOfWork)
+        public PricingService(IUnitOfWork unitOfWork)
         {
-            _exchangeRateService = exchangeRateService;
             _unitOfWork = unitOfWork;
         }
 
@@ -31,23 +29,24 @@ namespace KatalogApp.Infrastructure.Services
             var result = new Dictionary<int, decimal>();
             if (products == null || !products.Any()) return result;
 
-            decimal defaultHasPrice = await _exchangeRateService.GetHasAltinPriceAsync();
             // Fire payı çıkarıldı
 
             UserPricingProfile pricingProfile = null;
             List<UserStonePrice> customStones = new List<UserStonePrice>();
             List<UserPolishingCost> customPolishing = new List<UserPolishingCost>();
+            List<UserSettingPrice> customSettings = new List<UserSettingPrice>();
 
             if (userId.HasValue && userId.Value > 0)
             {
                 var user = await _unitOfWork.GetReadRepository<Users>().GetAsync(u => u.Id == userId.Value,
-                    include: i => i.Include(u => u.PricingProfile).Include(u => u.CustomStonePrices).Include(u => u.CustomPolishingCosts));
+                    include: i => i.Include(u => u.PricingProfile).Include(u => u.CustomStonePrices).Include(u => u.CustomPolishingCosts).Include(u => u.UserSettingPrices));
                 
                 if (user != null)
                 {
                     pricingProfile = user.PricingProfile;
                     if (user.CustomStonePrices != null) customStones = user.CustomStonePrices.Where(s => !s.IsDeleted).ToList();
                     if (user.CustomPolishingCosts != null) customPolishing = user.CustomPolishingCosts.Where(p => !p.IsDeleted).ToList();
+                    if (user.UserSettingPrices != null) customSettings = user.UserSettingPrices.Where(s => !s.IsDeleted).ToList();
                 }
             }
 
@@ -72,8 +71,8 @@ namespace KatalogApp.Infrastructure.Services
                     laborMultiplier = pricingProfile.CustomMilyem.Value;
                 }
 
-                // Always prioritize LIVE gold price from API. If API fails, fallback to saved LiveGoldPrice.
-                decimal productHasPrice = defaultHasPrice > 0 ? defaultHasPrice : (product.LiveGoldPrice > 0 ? product.LiveGoldPrice : 150);
+                // Use the product's saved gold price so existing product costs do not fluctuate with live rates.
+                decimal productHasPrice = product.LiveGoldPrice > 0 ? product.LiveGoldPrice : 150;
                 decimal goldCost = product.Gram * milyem * productHasPrice;
                 decimal laborCost = product.Gram * laborMultiplier * productHasPrice;
 
@@ -99,9 +98,15 @@ namespace KatalogApp.Infrastructure.Services
                                 ? customStone.CustomPrice.Value 
                                 : stoneLot.CostPrice;
                                 
-                            decimal stoneSettingPrice = customStone != null && customStone.CustomSettingPrice.HasValue && customStone.CustomSettingPrice.Value > 0 
-                                ? customStone.CustomSettingPrice.Value 
-                                : (stoneLot.StoneSetting?.SettingPrice ?? 0);
+                            var customSetting = stoneLot.StoneSettingId.HasValue
+                                ? customSettings.FirstOrDefault(s => s.StoneSettingId == stoneLot.StoneSettingId.Value)
+                                : null;
+
+                            decimal stoneSettingPrice = customSetting != null && customSetting.CustomPrice.HasValue && customSetting.CustomPrice.Value > 0
+                                ? customSetting.CustomPrice.Value
+                                : (customStone != null && customStone.CustomSettingPrice.HasValue && customStone.CustomSettingPrice.Value > 0
+                                    ? customStone.CustomSettingPrice.Value
+                                    : (stoneLot.StoneSetting?.SettingPrice ?? 0));
 
                             totalStoneCost += productStone.TotalCarat * stoneCostPrice;
 

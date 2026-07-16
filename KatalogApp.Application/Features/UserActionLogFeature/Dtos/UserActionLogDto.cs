@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 namespace KatalogApp.Application.Features.UserActionLogFeature.Dtos
 {
     public class UserActionLogDto
@@ -10,6 +10,9 @@ namespace KatalogApp.Application.Features.UserActionLogFeature.Dtos
         public string? Details { get; set; }
         public string? IpAddress { get; set; }
         public string? UserAgent { get; set; }
-        public DateTime CreatedDate { get; set; }
+        public System.DateTime CreatedAt { get; set; }
+        
+        public KatalogApp.Application.Features.UsersFeature.Dtos.UsersDto? User { get; set; }
+        public KatalogApp.Application.Features.ProductsFeature.Dtos.ProductDto? Product { get; set; }
     }
 }

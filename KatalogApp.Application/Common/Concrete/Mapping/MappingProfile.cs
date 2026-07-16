@@ -33,7 +33,11 @@ namespace KatalogApp.Application.Common.Concrete.Mapping
             CreateMap<MetalType, MetalTypeDto>().ReverseMap();
             CreateMap<ProductImage, ProductImageDto>().ReverseMap();
             CreateMap<ProductMetal, KatalogApp.Application.Features.ProductMetalFeature.Dtos.ProductMetalDto>().ReverseMap();
-            CreateMap<Products, ProductDto>().ReverseMap();
+            CreateMap<Products, ProductDto>()
+                .ForMember(dest => dest.Images, opt => opt.MapFrom(src => src.Images != null ? src.Images.Select(i => i.ImageName).ToList() : new List<string>()))
+                .ForMember(dest => dest.CategoryNames, opt => opt.MapFrom(src => src.Categories != null ? src.Categories.Select(c => c.Name).ToList() : new List<string>()))
+                .ForMember(dest => dest.CategoryIds, opt => opt.MapFrom(src => src.Categories != null ? src.Categories.Select(c => c.Id).ToList() : new List<int>()))
+                .ReverseMap();
             CreateMap<Products, KatalogApp.Application.Features.ProductsFeature.Queries.GetProductByCategoryId.GetProductByCategoryIdQueryResponse>()
                 .ForMember(dest => dest.MetalPurityName, opt => opt.MapFrom(src => src.MetalPurity != null ? src.MetalPurity.Name : ""))
                   .ForMember(dest => dest.MetalColorName, opt => opt.MapFrom(src => src.MetalColor != null ? src.MetalColor.Name : ""))
@@ -56,6 +60,9 @@ namespace KatalogApp.Application.Common.Concrete.Mapping
                 .ForMember(dest => dest.SettingType, opt => opt.MapFrom(src => src.Unit != null ? src.Unit.Name : null))
                 .ReverseMap();
             CreateMap<Units, UnitsDto>().ReverseMap();
+            CreateMap<KatalogApp.Domain.Entities.UserActionLog, KatalogApp.Application.Features.UserActionLogFeature.Dtos.UserActionLogDto>()
+                .ForMember(dest => dest.CreatedAt, opt => opt.MapFrom(src => src.CreatedDate))
+                .ReverseMap();
             CreateMap<Users, UsersDto>()
                 .ForMember(dest => dest.Name, opt => opt.MapFrom(src => src.FirstName))
                 .ForMember(dest => dest.Surname, opt => opt.MapFrom(src => src.LastName))
@@ -64,6 +71,7 @@ namespace KatalogApp.Application.Common.Concrete.Mapping
                 .ForMember(dest => dest.Phone, opt => opt.MapFrom(src => src.PhoneNumber))
                 .ForMember(dest => dest.MembershipExpiryDate, opt => opt.MapFrom(src => src.SubscriptionEndDate))
                 .ForMember(dest => dest.IsLocked, opt => opt.MapFrom(src => src.IsLocked))
+                .ForMember(dest => dest.CustomSettingPrices, opt => opt.MapFrom(src => src.UserSettingPrices))
                 .ReverseMap();
 
 
@@ -72,6 +80,7 @@ namespace KatalogApp.Application.Common.Concrete.Mapping
             CreateMap<KatalogApp.Domain.Entities.UserPricingProfile, KatalogApp.Application.Features.UsersFeature.Dtos.UserPricingProfileDto>().ReverseMap();
             CreateMap<KatalogApp.Domain.Entities.UserStonePrice, KatalogApp.Application.Features.UsersFeature.Dtos.UserStonePriceDto>().ReverseMap();
             CreateMap<KatalogApp.Domain.Entities.UserPolishingCost, KatalogApp.Application.Features.UsersFeature.Dtos.UserPolishingCostDto>().ReverseMap();
+            CreateMap<KatalogApp.Domain.Entities.UserSettingPrice, KatalogApp.Application.Features.UsersFeature.Dtos.UserSettingPriceDto>().ReverseMap();
 
 
             CreateMap<KatalogApp.Domain.Entities.Stone, KatalogApp.Application.Features.StoneFeature.Queries.GetAll.GetAllStoneQueryResponse>().ReverseMap();

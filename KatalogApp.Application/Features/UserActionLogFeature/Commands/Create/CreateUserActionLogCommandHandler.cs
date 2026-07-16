@@ -1,4 +1,4 @@
-﻿using System.Threading;
+using System.Threading;
 using System.Threading.Tasks;
 using MediatR;
 using KatalogApp.Application.Common.Abstractions.UnitOfWorks;
@@ -21,7 +21,7 @@ namespace KatalogApp.Application.Features.UserActionLogFeature.Commands.Create
             {
                 UserId = request.UserId,
                 ActionType = request.ActionType,
-                ProductId = request.ProductId,
+                ProductId = request.ProductId > 0 ? request.ProductId : null,
                 Details = request.Details,
                 IpAddress = request.IpAddress,
                 UserAgent = request.UserAgent

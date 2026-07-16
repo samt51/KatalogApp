@@ -1,4 +1,4 @@
-﻿using System.Threading;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Collections.Generic;
 using MediatR;
@@ -25,11 +25,11 @@ namespace KatalogApp.Application.Features.UserActionLogFeature.Queries.GetAll
         {
             var data = await _unitOfWork.GetReadRepository<UserActionLog>().GetAllAsync(
                 x => !x.IsDeleted,
-                include: y => y.Include(x => x.User).Include(x => x.Product),
+                include: y => y.Include(x => x.User).Include(x => x.Product).ThenInclude(p => p.Images),
                 ct: cancellationToken);
                 
             
-            var mapped = _mapper.Map<UserActionLogDto, UserActionLog>(data);
+            var mapped = _mapper.Map<System.Collections.Generic.List<UserActionLogDto>>(data);
             return new KatalogApp.Application.Core.Dtos.ResponseDto<System.Collections.Generic.List<UserActionLogDto>>().Success(mapped);
         }
     }

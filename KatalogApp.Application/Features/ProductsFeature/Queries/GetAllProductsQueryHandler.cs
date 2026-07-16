@@ -18,12 +18,14 @@ namespace KatalogApp.Application.Features.ProductsFeature.Queries
     {
         private readonly IUnitOfWork _unitOfWork;
         private readonly KatalogApp.Application.Interfaces.Services.IPricingService _pricingService;
+        private readonly KatalogApp.Application.Interfaces.Services.IExchangeRateService _exchangeRateService;
         private readonly IHttpContextAccessor _httpContextAccessor;
 
-        public GetAllProductsQueryHandler(IUnitOfWork unitOfWork, KatalogApp.Application.Interfaces.Services.IPricingService pricingService, IHttpContextAccessor httpContextAccessor)
+        public GetAllProductsQueryHandler(IUnitOfWork unitOfWork, KatalogApp.Application.Interfaces.Services.IPricingService pricingService, KatalogApp.Application.Interfaces.Services.IExchangeRateService exchangeRateService, IHttpContextAccessor httpContextAccessor)
         {
             _unitOfWork = unitOfWork;
             _pricingService = pricingService;
+            _exchangeRateService = exchangeRateService;
             _httpContextAccessor = httpContextAccessor;
         }
 
@@ -82,7 +84,8 @@ namespace KatalogApp.Application.Features.ProductsFeature.Queries
                 var customPrices = await _pricingService.CalculateCustomerPricesAsync(products.ToList(), currentUserId);
 
                 var result = new List<ProductDto>();
-                var basePath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "images", "katalog");
+                // Get current live price to ensure frontend calculation is perfectly in sync
+                decimal currentHasPrice = await _exchangeRateService.GetHasAltinPriceAsync();
 
                 foreach (var p in products)
                 {
@@ -102,7 +105,7 @@ namespace KatalogApp.Application.Features.ProductsFeature.Queries
                         MetalColorId = p.MetalColorId,
                         LaborMultiplier = p.LaborMultiplier,
                         PolishingCost = p.PolishingCost,
-                        LiveGoldPrice = p.LiveGoldPrice,
+                        LiveGoldPrice = currentHasPrice > 0 ? currentHasPrice : (p.LiveGoldPrice > 0 ? p.LiveGoldPrice : 150),
                         Images = p.Images?.Where(i => !i.IsDeleted).Select(i => i.ImageName).ToList() ?? new List<string>(),
                         ProductStones = p.ProductStones?.Where(ps => !ps.IsDeleted).Select(ps => new ProductStoneDto
                         {

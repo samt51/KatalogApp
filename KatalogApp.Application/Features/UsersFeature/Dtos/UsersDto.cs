@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 
 namespace KatalogApp.Application.Features.UsersFeature.Dtos
 {
@@ -19,5 +19,6 @@ namespace KatalogApp.Application.Features.UsersFeature.Dtos
         public UserPricingProfileDto? PricingProfile { get; set; }
         public System.Collections.Generic.List<UserStonePriceDto>? CustomStonePrices { get; set; }
         public System.Collections.Generic.List<UserPolishingCostDto>? CustomPolishingCosts { get; set; }
+        public System.Collections.Generic.List<UserSettingPriceDto>? CustomSettingPrices { get; set; }
     }
 }

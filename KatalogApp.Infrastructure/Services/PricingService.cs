@@ -72,7 +72,8 @@ namespace KatalogApp.Infrastructure.Services
                     laborMultiplier = pricingProfile.CustomMilyem.Value;
                 }
 
-                decimal productHasPrice = product.LiveGoldPrice > 0 ? product.LiveGoldPrice : defaultHasPrice;
+                // Always prioritize LIVE gold price from API. If API fails, fallback to saved LiveGoldPrice.
+                decimal productHasPrice = defaultHasPrice > 0 ? defaultHasPrice : (product.LiveGoldPrice > 0 ? product.LiveGoldPrice : 150);
                 decimal goldCost = product.Gram * milyem * productHasPrice;
                 decimal laborCost = product.Gram * laborMultiplier * productHasPrice;
 

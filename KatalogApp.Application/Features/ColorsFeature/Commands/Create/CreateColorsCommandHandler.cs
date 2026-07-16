@@ -1,4 +1,4 @@
-﻿using System.Threading;
+using System.Threading;
 using System.Threading.Tasks;
 using MediatR;
 using KatalogApp.Domain.Entities;
@@ -22,6 +22,8 @@ namespace KatalogApp.Application.Features.ColorsFeature.Commands.Create
         {
             var entity = new KatalogApp.Domain.Entities.Colors { CreatedDate = System.DateTime.Now };
             entity.Name = request.Name;
+            entity.Code = request.Name;
+            entity.ColorType = "Stone";
             
             await _unitOfWork.GetWriteRepository<KatalogApp.Domain.Entities.Colors>().AddAsync(entity, cancellationToken);
             await _unitOfWork.SaveAsync(cancellationToken);

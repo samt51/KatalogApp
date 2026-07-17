@@ -66,26 +66,29 @@ namespace KatalogApp.Application.Features.ProductsFeature.Queries
                     .ToListAsync(cancellationToken);
 
                 int? currentUserId = null;
-                var userIdClaim = _httpContextAccessor.HttpContext?.User?.FindFirst(ClaimTypes.NameIdentifier);
-                if (userIdClaim != null && int.TryParse(userIdClaim.Value, out int uid))
+                if (request.ApplyCustomerPricing)
                 {
-                    currentUserId = uid;
-                }
-                
-                if (currentUserId == null)
-                {
-                    var authHeader = _httpContextAccessor.HttpContext?.Request?.Headers["Authorization"].ToString();
-                    if (!string.IsNullOrEmpty(authHeader) && authHeader.StartsWith("Bearer ", System.StringComparison.OrdinalIgnoreCase))
+                    var userIdClaim = _httpContextAccessor.HttpContext?.User?.FindFirst(ClaimTypes.NameIdentifier);
+                    if (userIdClaim != null && int.TryParse(userIdClaim.Value, out int uid))
                     {
-                        var token = authHeader.Substring("Bearer ".Length).Trim();
-                        var handler = new System.IdentityModel.Tokens.Jwt.JwtSecurityTokenHandler();
-                        if (handler.CanReadToken(token))
+                        currentUserId = uid;
+                    }
+                    
+                    if (currentUserId == null)
+                    {
+                        var authHeader = _httpContextAccessor.HttpContext?.Request?.Headers["Authorization"].ToString();
+                        if (!string.IsNullOrEmpty(authHeader) && authHeader.StartsWith("Bearer ", System.StringComparison.OrdinalIgnoreCase))
                         {
-                            var jwtToken = handler.ReadJwtToken(token);
-                            var claimStr = jwtToken.Claims.FirstOrDefault(c => c.Type == ClaimTypes.NameIdentifier || c.Type == "nameid" || c.Type == "sub")?.Value;
-                            if (!string.IsNullOrEmpty(claimStr) && int.TryParse(claimStr, out int parsedUid))
+                            var token = authHeader.Substring("Bearer ".Length).Trim();
+                            var handler = new System.IdentityModel.Tokens.Jwt.JwtSecurityTokenHandler();
+                            if (handler.CanReadToken(token))
                             {
-                                currentUserId = parsedUid;
+                                var jwtToken = handler.ReadJwtToken(token);
+                                var claimStr = jwtToken.Claims.FirstOrDefault(c => c.Type == ClaimTypes.NameIdentifier || c.Type == "nameid" || c.Type == "sub")?.Value;
+                                if (!string.IsNullOrEmpty(claimStr) && int.TryParse(claimStr, out int parsedUid))
+                                {
+                                    currentUserId = parsedUid;
+                                }
                             }
                         }
                     }

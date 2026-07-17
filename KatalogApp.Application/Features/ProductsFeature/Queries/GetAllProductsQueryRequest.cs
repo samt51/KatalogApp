@@ -21,5 +21,6 @@ namespace KatalogApp.Application.Features.ProductsFeature.Queries
         public int PageSize { get; set; } = 10;
         public int? ColumnIndex { get; set; }
         public string? OrderBy { get; set; }
+        public bool ApplyCustomerPricing { get; set; } = true;
     }
 }

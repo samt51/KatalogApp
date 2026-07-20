@@ -318,9 +318,8 @@ public sealed class CustomerCatalogExportController : ControllerBase
             .Append(product.ImageName).Where(x => !string.IsNullOrWhiteSpace(x)).Distinct(StringComparer.OrdinalIgnoreCase);
         foreach (var imageName in imageNames)
         {
-            var relative = imageName!.Replace('/', Path.DirectorySeparatorChar).TrimStart(Path.DirectorySeparatorChar);
-            if (relative.StartsWith("images" + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
-                relative = relative[("images" + Path.DirectorySeparatorChar).Length..];
+            var relative = NormalizeImagePath(imageName!);
+            if (string.IsNullOrWhiteSpace(relative)) continue;
             var direct = new[]
             {
                 Path.Combine(_environment.WebRootPath, "images", "katalog", relative),
@@ -339,6 +338,34 @@ public sealed class CustomerCatalogExportController : ControllerBase
             .ToList();
         return matches.FirstOrDefault(path => Path.GetFileNameWithoutExtension(path).Equals(code, StringComparison.OrdinalIgnoreCase))
             ?? matches.FirstOrDefault();
+    }
+    private static string? NormalizeImagePath(string imageName)
+    {
+        var value = imageName.Trim();
+        if (Uri.TryCreate(value, UriKind.Absolute, out var uri))
+            value = Uri.UnescapeDataString(uri.AbsolutePath);
+
+        value = value.Replace('\\', '/');
+        const string catalogMarker = "/images/katalog/";
+        var catalogIndex = value.IndexOf(catalogMarker, StringComparison.OrdinalIgnoreCase);
+        if (catalogIndex >= 0)
+            value = value[(catalogIndex + catalogMarker.Length)..];
+        else
+        {
+            const string imagesMarker = "/images/";
+            var imagesIndex = value.IndexOf(imagesMarker, StringComparison.OrdinalIgnoreCase);
+            if (imagesIndex >= 0)
+                value = value[(imagesIndex + imagesMarker.Length)..];
+        }
+
+        value = value.TrimStart('/');
+        if (value.StartsWith("images/katalog/", StringComparison.OrdinalIgnoreCase))
+            value = value["images/katalog/".Length..];
+        else if (value.StartsWith("images/", StringComparison.OrdinalIgnoreCase))
+            value = value["images/".Length..];
+
+        var relative = value.Replace('/', Path.DirectorySeparatorChar);
+        return relative.Split(Path.DirectorySeparatorChar).Any(part => part == "..") ? null : relative;
     }
     private static bool IsSupportedImage(string path) => new[] { ".jpg", ".jpeg", ".png", ".webp" }.Contains(Path.GetExtension(path), StringComparer.OrdinalIgnoreCase);
     private static string CustomerName(Users u) => string.Join(" ", new[] { u.FirstName, u.LastName }.Where(x => !string.IsNullOrWhiteSpace(x)));

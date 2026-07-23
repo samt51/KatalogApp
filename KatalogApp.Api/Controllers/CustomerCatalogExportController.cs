@@ -328,6 +328,19 @@ public sealed class CustomerCatalogExportController : ControllerBase
             var relative = NormalizeImagePath(imageName);
             if (string.IsNullOrWhiteSpace(relative)) continue;
 
+            // Canlı API sunucusunda görselin birebir kopyası varsa doğrudan oku.
+            // Burada ürün koduyla arama/fallback yapılmaz; yalnızca DB'deki tam yol
+            // eşleştiği için eski veya başka bir ürünün resmi seçilemez.
+            var osRelative = relative.Replace('/', Path.DirectorySeparatorChar);
+            var exactLocalPath = new[]
+            {
+                Path.Combine(_environment.WebRootPath, "images", "katalog", osRelative),
+                Path.Combine(_environment.WebRootPath, "images", osRelative),
+                Path.Combine(_environment.WebRootPath, osRelative)
+            }.FirstOrDefault(System.IO.File.Exists);
+            if (exactLocalPath is not null)
+                return await System.IO.File.ReadAllBytesAsync(exactLocalPath, ct);
+
             // Build URL by appending each segment individually to avoid double-encoding issues
             // relative uses '/' as separator regardless of OS
             var baseUri = _catalogImageBaseUrl.TrimEnd('/');

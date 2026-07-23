@@ -13,13 +13,19 @@ namespace KatalogApp.Api.Controllers;
 [Route("api/customers/{customerId:int}/catalog-export")]
 public sealed class CustomerCatalogExportController : ControllerBase
 {
+    private static readonly HttpClient ImageClient = new() { Timeout = TimeSpan.FromSeconds(10) };
+    private static readonly SemaphoreSlim ImageDownloadGate = new(24);
     private readonly IUnitOfWork _unitOfWork;
     private readonly IWebHostEnvironment _environment;
+    private readonly string _catalogImageBaseUrl;
 
-    public CustomerCatalogExportController(IUnitOfWork unitOfWork, IWebHostEnvironment environment)
+    public CustomerCatalogExportController(IUnitOfWork unitOfWork, IWebHostEnvironment environment,
+        IConfiguration configuration)
     {
         _unitOfWork = unitOfWork;
         _environment = environment;
+        _catalogImageBaseUrl = configuration["CatalogImageBaseUrl"]
+            ?? "https://b2b.naifjewellery.com/images/katalog/";
     }
 
     [HttpGet("excel")]
@@ -31,13 +37,14 @@ public sealed class CustomerCatalogExportController : ControllerBase
             : await BuildGeneralCatalog(cancellationToken);
         if (catalog is null) return NotFound(new { message = "Müşteri bulunamadı." });
 
+        var productImages = await LoadProductImages(catalog.Products, cancellationToken);
         using var workbook = new XLWorkbook();
         var english = IsEnglish(lang);
-        AddCustomerProductsSheet(workbook, catalog, english);
+        AddCustomerProductsSheet(workbook, catalog, english, productImages);
         AddCustomerStonesSheet(workbook, catalog, english);
         using var stream = new MemoryStream();
         workbook.SaveAs(stream);
-        return File(stream.ToArray(), "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", FileName(catalog.Customer, "xlsx"));
+        return File(stream.ToArray(), "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", FileName("xlsx"));
     }
 
     [HttpGet("pdf")]
@@ -49,6 +56,7 @@ public sealed class CustomerCatalogExportController : ControllerBase
             : await BuildGeneralCatalog(cancellationToken);
         if (catalog is null) return NotFound(new { message = "Müşteri bulunamadı." });
 
+        var productImages = await LoadProductImages(catalog.Products, cancellationToken);
         var english = IsEnglish(lang);
         QuestPDF.Settings.License = LicenseType.Community;
         var bytes = Document.Create(document =>
@@ -63,9 +71,7 @@ public sealed class CustomerCatalogExportController : ControllerBase
                     column.Item().Text(english
                         ? (catalog.IsCustomerSpecific ? "Customer-Specific Product Catalog" : "Product Catalog")
                         : (catalog.IsCustomerSpecific ? "Müşteriye Özel Ürün Kataloğu" : "Ürün Kataloğu")).FontSize(16).Bold();
-                    column.Item().Text(catalog.IsCustomerSpecific
-                        ? $"{CustomerName(catalog.Customer)}  •  {DateTime.Now:dd.MM.yyyy}"
-                        : $"{DateTime.Now:dd.MM.yyyy}");
+                    column.Item().Text($"{DateTime.Now:dd.MM.yyyy}");
                 });
                 page.Content().PaddingTop(8).Column(column =>
                 {
@@ -73,7 +79,7 @@ public sealed class CustomerCatalogExportController : ControllerBase
                     {
                         column.Item().BorderBottom(1).BorderColor(QuestPDF.Helpers.Colors.Grey.Lighten2).PaddingVertical(7).Row(card =>
                         {
-                            var image = ReadPrimaryImage(row.Product);
+                            productImages.TryGetValue(row.Product.Id, out var image);
                             card.ConstantItem(86).Height(86).Border(1).BorderColor(QuestPDF.Helpers.Colors.Grey.Lighten3)
                                 .AlignCenter().AlignMiddle().Element(container =>
                                 {
@@ -119,7 +125,7 @@ public sealed class CustomerCatalogExportController : ControllerBase
                 page.Footer().AlignCenter().Text(text => { text.Span("Sayfa "); text.CurrentPageNumber(); text.Span(" / "); text.TotalPages(); });
             });
         }).GeneratePdf();
-        return File(bytes, "application/pdf", FileName(catalog.Customer, "pdf"));
+        return File(bytes, "application/pdf", FileName("pdf"));
     }
 
     private async Task<Catalog?> BuildCatalog(int customerId, CancellationToken ct)
@@ -196,7 +202,8 @@ public sealed class CustomerCatalogExportController : ControllerBase
         return new ProductRow(p, milyem, laborMultiplier, gold, labor, stones.Sum(x => x.Cost), stones.Sum(x => x.SettingCost), polish, subtotal, subtotal * multiplier, stones);
     }
 
-    private void AddCustomerProductsSheet(XLWorkbook book, Catalog catalog, bool english)
+    private void AddCustomerProductsSheet(XLWorkbook book, Catalog catalog, bool english,
+        IReadOnlyDictionary<int, byte[]> productImages)
     {
         var ws = book.Worksheets.Add(english ? "Products" : "Ürünler");
         var headers = english
@@ -208,9 +215,8 @@ public sealed class CustomerCatalogExportController : ControllerBase
         {
             object?[] values = { "", x.Product.Code, Join(x.Product.Categories.Select(c => c.Name)), x.Product.Gram, x.Product.MetalPurity?.Name, ProductCarat(x), ProductColor(x), x.Total };
             for (var c = 0; c < values.Length; c++) ws.Cell(r, c + 1).Value = XLCellValue.FromObject(values[c]);
-            var imagePath = PrimaryImagePath(x.Product);
-            if (imagePath is not null)
-                ws.AddPicture(imagePath).MoveTo(ws.Cell(r, 1), 4, 4).WithSize(72, 72);
+            if (productImages.TryGetValue(x.Product.Id, out var image))
+                ws.AddPicture(new MemoryStream(image)).MoveTo(ws.Cell(r, 1), 4, 4).WithSize(72, 72);
             ws.Row(r).Height = 58;
             r++;
         }
@@ -307,24 +313,71 @@ public sealed class CustomerCatalogExportController : ControllerBase
         var text = table.Cell().BorderBottom(1).BorderColor(QuestPDF.Helpers.Colors.Grey.Lighten3).Padding(2).Text(value ?? "-").FontSize(7);
         if (accent) text.FontColor(QuestPDF.Helpers.Colors.Blue.Medium).Bold();
     }
-    private byte[]? ReadPrimaryImage(Products product)
+    private async Task<IReadOnlyDictionary<int, byte[]>> LoadProductImages(IEnumerable<ProductRow> rows, CancellationToken ct)
     {
-        var path = PrimaryImagePath(product);
-        return path is null ? null : System.IO.File.ReadAllBytes(path);
+        var tasks = rows.Select(async row => (row.Product.Id, Image: await ReadPrimaryImage(row.Product, ct)));
+        var images = await Task.WhenAll(tasks);
+        return images.Where(x => x.Image is not null).ToDictionary(x => x.Id, x => x.Image!);
     }
+
+    private async Task<byte[]?> ReadPrimaryImage(Products product, CancellationToken ct)
+    {
+        foreach (var imageName in ImageNames(product))
+        {
+            // NormalizeImagePath returns a forward-slash relative path (e.g. "KATEGORI/URUN_1.jpg")
+            var relative = NormalizeImagePath(imageName);
+            if (string.IsNullOrWhiteSpace(relative)) continue;
+
+            // Build URL by appending each segment individually to avoid double-encoding issues
+            // relative uses '/' as separator regardless of OS
+            var baseUri = _catalogImageBaseUrl.TrimEnd('/');
+            // Try without encoding first (most web servers handle UTF-8 paths natively)
+            var rawUrl = baseUri + "/" + relative.Replace('\\', '/');
+            // Also try with percent-encoded segments as fallback
+            var encodedSegments = string.Join('/',
+                relative.Replace('\\', '/').Split('/', StringSplitOptions.RemoveEmptyEntries)
+                    .Select(Uri.EscapeDataString));
+            var encodedUrl = baseUri + "/" + encodedSegments;
+
+            foreach (var url in new[] { rawUrl, encodedUrl })
+            {
+                if (!Uri.TryCreate(url, UriKind.Absolute, out var uri)) continue;
+                var gateEntered = false;
+                try
+                {
+                    await ImageDownloadGate.WaitAsync(ct);
+                    gateEntered = true;
+                    using var response = await ImageClient.GetAsync(uri, HttpCompletionOption.ResponseHeadersRead, ct);
+                    if (response.IsSuccessStatusCode && response.Content.Headers.ContentType?.MediaType?.StartsWith("image/") == true)
+                        return await response.Content.ReadAsByteArrayAsync(ct);
+                }
+                catch (HttpRequestException) { }
+                finally { if (gateEntered) ImageDownloadGate.Release(); }
+            }
+        }
+        return null;
+    }
+
+    private static IEnumerable<string> ImageNames(Products product) =>
+        product.Images.Where(x => !x.IsDeleted).OrderBy(x => x.SortOrder).Select(x => x.ImageName)
+            // Products.ImageName yönetim ekranında seçilen güncel ana resimdir.
+            // Eski ProductImage satırlarının PDF/Excel'de öne geçmesini engelle.
+            .Prepend(product.ImageName).Where(x => !string.IsNullOrWhiteSpace(x))
+            .Select(x => x!).Distinct(StringComparer.OrdinalIgnoreCase);
+
     private string? PrimaryImagePath(Products product)
     {
-        var imageNames = product.Images.Where(x => !x.IsDeleted).OrderBy(x => x.SortOrder).Select(x => x.ImageName)
-            .Append(product.ImageName).Where(x => !string.IsNullOrWhiteSpace(x)).Distinct(StringComparer.OrdinalIgnoreCase);
-        foreach (var imageName in imageNames)
+        foreach (var imageName in ImageNames(product))
         {
             var relative = NormalizeImagePath(imageName!);
             if (string.IsNullOrWhiteSpace(relative)) continue;
+            // Convert forward-slash relative path to OS path separator for file system access
+            var osRelative = relative.Replace('/', Path.DirectorySeparatorChar);
             var direct = new[]
             {
-                Path.Combine(_environment.WebRootPath, "images", "katalog", relative),
-                Path.Combine(_environment.WebRootPath, "images", relative),
-                Path.Combine(_environment.WebRootPath, relative)
+                Path.Combine(_environment.WebRootPath, "images", "katalog", osRelative),
+                Path.Combine(_environment.WebRootPath, "images", osRelative),
+                Path.Combine(_environment.WebRootPath, osRelative)
             }.FirstOrDefault(System.IO.File.Exists);
             if (direct is not null) return direct;
         }
@@ -345,6 +398,7 @@ public sealed class CustomerCatalogExportController : ControllerBase
         if (Uri.TryCreate(value, UriKind.Absolute, out var uri))
             value = Uri.UnescapeDataString(uri.AbsolutePath);
 
+        // Normalize to forward slashes for consistent processing
         value = value.Replace('\\', '/');
         const string catalogMarker = "/images/katalog/";
         var catalogIndex = value.IndexOf(catalogMarker, StringComparison.OrdinalIgnoreCase);
@@ -364,13 +418,13 @@ public sealed class CustomerCatalogExportController : ControllerBase
         else if (value.StartsWith("images/", StringComparison.OrdinalIgnoreCase))
             value = value["images/".Length..];
 
-        var relative = value.Replace('/', Path.DirectorySeparatorChar);
-        return relative.Split(Path.DirectorySeparatorChar).Any(part => part == "..") ? null : relative;
+        // Keep forward slashes — callers convert to OS separator as needed for file system access
+        // This ensures the path works correctly for both HTTP URLs and Path.Combine
+        return value.Split('/').Any(part => part == "..") ? null : value;
     }
     private static bool IsSupportedImage(string path) => new[] { ".jpg", ".jpeg", ".png", ".webp" }.Contains(Path.GetExtension(path), StringComparer.OrdinalIgnoreCase);
     private static string CustomerName(Users u) => string.Join(" ", new[] { u.FirstName, u.LastName }.Where(x => !string.IsNullOrWhiteSpace(x)));
-    private static string FileName(Users u, string extension) => $"{Safe(u.CompanyName ?? CustomerName(u))}_katalog_{DateTime.Now:yyyyMMdd}.{extension}";
-    private static string Safe(string value) => string.Concat(value.Select(ch => Path.GetInvalidFileNameChars().Contains(ch) ? '_' : ch));
+    private static string FileName(string extension) => $"katalog_{DateTime.Now:yyyyMMdd}.{extension}";
 
     private sealed record Catalog(Users Customer, UserPricingProfile? Profile, decimal Multiplier, List<ProductRow> Products, bool IsCustomerSpecific);
     private sealed record ProductRow(Products Product, decimal Milyem, decimal LaborMultiplier, decimal GoldCost, decimal LaborCost, decimal StoneCost, decimal SettingCost, decimal PolishingCost, decimal Subtotal, decimal Total, List<StoneRow> Stones) { public decimal FineGold => Product.Gram * Milyem; }

@@ -165,21 +165,45 @@ namespace KatalogApp.Application.Features.ProductsFeature.Commands.Update
                 }
             }
 
-            // Update Images
-            if (request.ImageNames != null && request.ImageNames.Count > 0)
-            {
-                entity.ImageName = request.ImageNames[0]; // Set main image
+            // İstemciden gelen liste ürünün güncel resim listesidir. Eski davranış
+            // her kayıtta aynı resimleri tekrar eklediği için PDF/Excel eski resmi
+            // ana resim olarak seçiyordu. Koleksiyonu ve sıralamayı birebir eşitle.
+            var requestedImages = (request.ImageNames ?? new List<string>())
+                .Where(x => !string.IsNullOrWhiteSpace(x))
+                .Select(x => x.Trim().Replace('\\', '/'))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
 
-                // Delete all old ones permanently, or soft delete? We'll just keep adding new ones or clear.
-                // Wait, if ImageNames contains new images, we just append them! We already have an API to delete images individually, or we can manage them together.
-                // Assuming ImageNames only contains newly uploaded images.
-                foreach (var img in request.ImageNames)
+            entity.ImageName = requestedImages.FirstOrDefault() ?? string.Empty;
+
+            foreach (var existingImage in entity.Images.Where(x => !x.IsDeleted))
+            {
+                if (!requestedImages.Contains(existingImage.ImageName.Replace('\\', '/'), StringComparer.OrdinalIgnoreCase))
+                {
+                    existingImage.IsDeleted = true;
+                    existingImage.ModifyDate = System.DateTime.Now;
+                }
+            }
+
+            for (var index = 0; index < requestedImages.Count; index++)
+            {
+                var imageName = requestedImages[index];
+                var existingImage = entity.Images.FirstOrDefault(x =>
+                    !x.IsDeleted && string.Equals(x.ImageName.Replace('\\', '/'), imageName, StringComparison.OrdinalIgnoreCase));
+
+                if (existingImage is null)
                 {
                     entity.Images.Add(new KatalogApp.Domain.Entities.ProductImage
                     {
-                        ImageName = img,
+                        ImageName = imageName,
+                        SortOrder = index + 1,
                         CreatedDate = System.DateTime.Now
                     });
+                }
+                else
+                {
+                    existingImage.SortOrder = index + 1;
+                    existingImage.ModifyDate = System.DateTime.Now;
                 }
             }
             

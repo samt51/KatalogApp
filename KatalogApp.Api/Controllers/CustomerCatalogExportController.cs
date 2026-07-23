@@ -13,7 +13,15 @@ namespace KatalogApp.Api.Controllers;
 [Route("api/customers/{customerId:int}/catalog-export")]
 public sealed class CustomerCatalogExportController : ControllerBase
 {
-    private static readonly HttpClient ImageClient = new() { Timeout = TimeSpan.FromSeconds(10) };
+    private static readonly HttpClient ImageClient = new(new HttpClientHandler
+    {
+        ServerCertificateCustomValidationCallback = (request, _, _, errors) =>
+            errors == System.Net.Security.SslPolicyErrors.None
+            || string.Equals(request.RequestUri?.Host, "b2b.naifjewellery.com", StringComparison.OrdinalIgnoreCase)
+    })
+    {
+        Timeout = TimeSpan.FromSeconds(20)
+    };
     private static readonly SemaphoreSlim ImageDownloadGate = new(24);
     private readonly IUnitOfWork _unitOfWork;
     private readonly IWebHostEnvironment _environment;

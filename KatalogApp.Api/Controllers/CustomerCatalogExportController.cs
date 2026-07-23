@@ -27,16 +27,14 @@ public sealed class CustomerCatalogExportController : ControllerBase
     private readonly IUnitOfWork _unitOfWork;
     private readonly IWebHostEnvironment _environment;
     private readonly string _catalogImageBaseUrl;
-    private readonly ILogger<CustomerCatalogExportController> _logger;
 
     public CustomerCatalogExportController(IUnitOfWork unitOfWork, IWebHostEnvironment environment,
-        IConfiguration configuration, ILogger<CustomerCatalogExportController> logger)
+        IConfiguration configuration)
     {
         _unitOfWork = unitOfWork;
         _environment = environment;
         _catalogImageBaseUrl = configuration["CatalogImageBaseUrl"]
             ?? "https://b2b.naifjewellery.com/images/katalog/";
-        _logger = logger;
     }
 
     [HttpGet("excel")]
@@ -108,9 +106,8 @@ public sealed class CustomerCatalogExportController : ControllerBase
                                     {
                                         container.Image(image).FitArea();
                                     }
-                                    catch (Exception ex)
+                                    catch (Exception)
                                     {
-                                        _logger.LogWarning(ex, "PDF'e ürün görseli eklenemedi. ProductId: {ProductId}, Code: {Code}", row.Product.Id, row.Product.Code);
                                         container.Text("Görsel yok").FontColor(QuestPDF.Helpers.Colors.Grey.Medium);
                                     }
                                 });
@@ -249,9 +246,8 @@ public sealed class CustomerCatalogExportController : ControllerBase
                 {
                     ws.AddPicture(new MemoryStream(image)).MoveTo(ws.Cell(r, 1), 4, 4).WithSize(72, 72);
                 }
-                catch (Exception ex)
+                catch (Exception)
                 {
-                    _logger.LogWarning(ex, "Excel'e ürün görseli eklenemedi. ProductId: {ProductId}, Code: {Code}", x.Product.Id, x.Product.Code);
                 }
             }
             ws.Row(r).Height = 58;
@@ -363,14 +359,12 @@ public sealed class CustomerCatalogExportController : ControllerBase
         {
             return await ReadPrimaryImageCore(product, ct);
         }
-        catch (OperationCanceledException ex) when (!ct.IsCancellationRequested)
+        catch (OperationCanceledException) when (!ct.IsCancellationRequested)
         {
-            _logger.LogWarning(ex, "Katalog görseli zaman aşımına uğradı. ProductId: {ProductId}, Code: {Code}", product.Id, product.Code);
             return null;
         }
-        catch (Exception ex)
+        catch (Exception)
         {
-            _logger.LogWarning(ex, "Katalog görseli işlenemedi. ProductId: {ProductId}, Code: {Code}", product.Id, product.Code);
             return null;
         }
     }
@@ -420,12 +414,9 @@ public sealed class CustomerCatalogExportController : ControllerBase
                         using var response = await ImageClient.GetAsync(uri, HttpCompletionOption.ResponseHeadersRead, ct);
                         if (response.IsSuccessStatusCode && response.Content.Headers.ContentType?.MediaType?.StartsWith("image/") == true)
                             return await response.Content.ReadAsByteArrayAsync(ct);
-                        _logger.LogWarning("Katalog görseli indirilemedi. Url: {Url}, Deneme: {Attempt}, Status: {Status}, ContentType: {ContentType}",
-                            uri, attempt, (int)response.StatusCode, response.Content.Headers.ContentType?.MediaType);
                     }
-                    catch (HttpRequestException ex)
+                    catch (HttpRequestException)
                     {
-                        _logger.LogWarning(ex, "Katalog görseli HTTP hatası. Url: {Url}, Deneme: {Attempt}", uri, attempt);
                     }
                     finally
                     {

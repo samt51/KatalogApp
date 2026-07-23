@@ -27,6 +27,7 @@ public sealed class CustomerCatalogExportController : ControllerBase
     private readonly IUnitOfWork _unitOfWork;
     private readonly IWebHostEnvironment _environment;
     private readonly string _catalogImageBaseUrl;
+    private readonly string? _catalogImageRootPath;
 
     public CustomerCatalogExportController(IUnitOfWork unitOfWork, IWebHostEnvironment environment,
         IConfiguration configuration)
@@ -35,6 +36,7 @@ public sealed class CustomerCatalogExportController : ControllerBase
         _environment = environment;
         _catalogImageBaseUrl = configuration["CatalogImageBaseUrl"]
             ?? "https://b2b.naifjewellery.com/images/katalog/";
+        _catalogImageRootPath = configuration["CatalogImageRootPath"];
     }
 
     [HttpGet("excel")]
@@ -381,12 +383,16 @@ public sealed class CustomerCatalogExportController : ControllerBase
             // Burada ürün koduyla arama/fallback yapılmaz; yalnızca DB'deki tam yol
             // eşleştiği için eski veya başka bir ürünün resmi seçilemez.
             var osRelative = relative.Replace('/', Path.DirectorySeparatorChar);
-            var exactLocalPath = new[]
+            var localRoots = new[]
             {
-                Path.Combine(_environment.WebRootPath, "images", "katalog", osRelative),
-                Path.Combine(_environment.WebRootPath, "images", osRelative),
-                Path.Combine(_environment.WebRootPath, osRelative)
-            }.FirstOrDefault(System.IO.File.Exists);
+                _catalogImageRootPath,
+                Path.Combine(_environment.WebRootPath, "images", "katalog"),
+                Path.Combine(_environment.WebRootPath, "images"),
+                _environment.WebRootPath
+            }.Where(root => !string.IsNullOrWhiteSpace(root));
+            var exactLocalPath = localRoots
+                .Select(root => Path.GetFullPath(Path.Combine(root!, osRelative)))
+                .FirstOrDefault(System.IO.File.Exists);
             if (exactLocalPath is not null)
                 return await System.IO.File.ReadAllBytesAsync(exactLocalPath, ct);
 

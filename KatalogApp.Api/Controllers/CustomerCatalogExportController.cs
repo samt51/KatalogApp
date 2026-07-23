@@ -15,14 +15,15 @@ public sealed class CustomerCatalogExportController : ControllerBase
 {
     private static readonly HttpClient ImageClient = new(new HttpClientHandler
     {
+        MaxConnectionsPerServer = 4,
         ServerCertificateCustomValidationCallback = (request, _, _, errors) =>
             errors == System.Net.Security.SslPolicyErrors.None
             || string.Equals(request.RequestUri?.Host, "b2b.naifjewellery.com", StringComparison.OrdinalIgnoreCase)
     })
     {
-        Timeout = TimeSpan.FromSeconds(20)
+        Timeout = TimeSpan.FromSeconds(60)
     };
-    private static readonly SemaphoreSlim ImageDownloadGate = new(24);
+    private static readonly SemaphoreSlim ImageDownloadGate = new(4);
     private readonly IUnitOfWork _unitOfWork;
     private readonly IWebHostEnvironment _environment;
     private readonly string _catalogImageBaseUrl;
@@ -97,8 +98,21 @@ public sealed class CustomerCatalogExportController : ControllerBase
                             card.ConstantItem(86).Height(86).Border(1).BorderColor(QuestPDF.Helpers.Colors.Grey.Lighten3)
                                 .AlignCenter().AlignMiddle().Element(container =>
                                 {
-                                    if (image is not null) container.Image(image).FitArea();
-                                    else container.Text("Görsel yok").FontColor(QuestPDF.Helpers.Colors.Grey.Medium);
+                                    if (image is null)
+                                    {
+                                        container.Text("Görsel yok").FontColor(QuestPDF.Helpers.Colors.Grey.Medium);
+                                        return;
+                                    }
+
+                                    try
+                                    {
+                                        container.Image(image).FitArea();
+                                    }
+                                    catch (Exception ex)
+                                    {
+                                        _logger.LogWarning(ex, "PDF'e ürün görseli eklenemedi. ProductId: {ProductId}, Code: {Code}", row.Product.Id, row.Product.Code);
+                                        container.Text("Görsel yok").FontColor(QuestPDF.Helpers.Colors.Grey.Medium);
+                                    }
                                 });
                             card.RelativeItem().PaddingLeft(10).Column(info =>
                             {
@@ -230,7 +244,16 @@ public sealed class CustomerCatalogExportController : ControllerBase
             object?[] values = { "", x.Product.Code, Join(x.Product.Categories.Select(c => c.Name)), x.Product.Gram, x.Product.MetalPurity?.Name, ProductCarat(x), ProductColor(x), x.Total };
             for (var c = 0; c < values.Length; c++) ws.Cell(r, c + 1).Value = XLCellValue.FromObject(values[c]);
             if (productImages.TryGetValue(x.Product.Id, out var image))
-                ws.AddPicture(new MemoryStream(image)).MoveTo(ws.Cell(r, 1), 4, 4).WithSize(72, 72);
+            {
+                try
+                {
+                    ws.AddPicture(new MemoryStream(image)).MoveTo(ws.Cell(r, 1), 4, 4).WithSize(72, 72);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Excel'e ürün görseli eklenemedi. ProductId: {ProductId}, Code: {Code}", x.Product.Id, x.Product.Code);
+                }
+            }
             ws.Row(r).Height = 58;
             r++;
         }
@@ -336,6 +359,24 @@ public sealed class CustomerCatalogExportController : ControllerBase
 
     private async Task<byte[]?> ReadPrimaryImage(Products product, CancellationToken ct)
     {
+        try
+        {
+            return await ReadPrimaryImageCore(product, ct);
+        }
+        catch (OperationCanceledException ex) when (!ct.IsCancellationRequested)
+        {
+            _logger.LogWarning(ex, "Katalog görseli zaman aşımına uğradı. ProductId: {ProductId}, Code: {Code}", product.Id, product.Code);
+            return null;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Katalog görseli işlenemedi. ProductId: {ProductId}, Code: {Code}", product.Id, product.Code);
+            return null;
+        }
+    }
+
+    private async Task<byte[]?> ReadPrimaryImageCore(Products product, CancellationToken ct)
+    {
         foreach (var imageName in ImageNames(product))
         {
             // NormalizeImagePath returns a forward-slash relative path (e.g. "KATEGORI/URUN_1.jpg")
@@ -369,22 +410,31 @@ public sealed class CustomerCatalogExportController : ControllerBase
             foreach (var url in new[] { rawUrl, encodedUrl })
             {
                 if (!Uri.TryCreate(url, UriKind.Absolute, out var uri)) continue;
-                var gateEntered = false;
-                try
+                for (var attempt = 1; attempt <= 3; attempt++)
                 {
-                    await ImageDownloadGate.WaitAsync(ct);
-                    gateEntered = true;
-                    using var response = await ImageClient.GetAsync(uri, HttpCompletionOption.ResponseHeadersRead, ct);
-                    if (response.IsSuccessStatusCode && response.Content.Headers.ContentType?.MediaType?.StartsWith("image/") == true)
-                        return await response.Content.ReadAsByteArrayAsync(ct);
-                    _logger.LogWarning("Katalog görseli indirilemedi. Url: {Url}, Status: {Status}, ContentType: {ContentType}",
-                        uri, (int)response.StatusCode, response.Content.Headers.ContentType?.MediaType);
+                    var gateEntered = false;
+                    try
+                    {
+                        await ImageDownloadGate.WaitAsync(ct);
+                        gateEntered = true;
+                        using var response = await ImageClient.GetAsync(uri, HttpCompletionOption.ResponseHeadersRead, ct);
+                        if (response.IsSuccessStatusCode && response.Content.Headers.ContentType?.MediaType?.StartsWith("image/") == true)
+                            return await response.Content.ReadAsByteArrayAsync(ct);
+                        _logger.LogWarning("Katalog görseli indirilemedi. Url: {Url}, Deneme: {Attempt}, Status: {Status}, ContentType: {ContentType}",
+                            uri, attempt, (int)response.StatusCode, response.Content.Headers.ContentType?.MediaType);
+                    }
+                    catch (HttpRequestException ex)
+                    {
+                        _logger.LogWarning(ex, "Katalog görseli HTTP hatası. Url: {Url}, Deneme: {Attempt}", uri, attempt);
+                    }
+                    finally
+                    {
+                        if (gateEntered) ImageDownloadGate.Release();
+                    }
+
+                    if (attempt < 3)
+                        await Task.Delay(TimeSpan.FromMilliseconds(250 * attempt), ct);
                 }
-                catch (HttpRequestException ex)
-                {
-                    _logger.LogWarning(ex, "Katalog görseli HTTP hatası. Url: {Url}", uri);
-                }
-                finally { if (gateEntered) ImageDownloadGate.Release(); }
             }
         }
         return null;

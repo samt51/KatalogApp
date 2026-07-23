@@ -383,8 +383,12 @@ public sealed class CustomerCatalogExportController : ControllerBase
             // Burada ürün koduyla arama/fallback yapılmaz; yalnızca DB'deki tam yol
             // eşleştiği için eski veya başka bir ürünün resmi seçilemez.
             var osRelative = relative.Replace('/', Path.DirectorySeparatorChar);
+            var requestImageRoot = Request.Headers.TryGetValue("X-Catalog-Image-Root", out var requestedRoot)
+                ? ValidCatalogRoot(requestedRoot.ToString())
+                : null;
             var localRoots = new[]
             {
+                requestImageRoot,
                 _catalogImageRootPath,
                 Path.Combine(_environment.WebRootPath, "images", "katalog"),
                 Path.Combine(_environment.WebRootPath, "images"),
@@ -435,6 +439,24 @@ public sealed class CustomerCatalogExportController : ControllerBase
             }
         }
         return null;
+    }
+
+    private static string? ValidCatalogRoot(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value)) return null;
+        try
+        {
+            var fullPath = Path.GetFullPath(value).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+            return Directory.Exists(fullPath)
+                && string.Equals(Path.GetFileName(fullPath), "katalog", StringComparison.OrdinalIgnoreCase)
+                && string.Equals(Path.GetFileName(Path.GetDirectoryName(fullPath)), "images", StringComparison.OrdinalIgnoreCase)
+                    ? fullPath
+                    : null;
+        }
+        catch
+        {
+            return null;
+        }
     }
 
     private static IEnumerable<string> ImageNames(Products product) =>

@@ -18,14 +18,16 @@ public sealed class CustomerCatalogExportController : ControllerBase
     private readonly IUnitOfWork _unitOfWork;
     private readonly IWebHostEnvironment _environment;
     private readonly string _catalogImageBaseUrl;
+    private readonly ILogger<CustomerCatalogExportController> _logger;
 
     public CustomerCatalogExportController(IUnitOfWork unitOfWork, IWebHostEnvironment environment,
-        IConfiguration configuration)
+        IConfiguration configuration, ILogger<CustomerCatalogExportController> logger)
     {
         _unitOfWork = unitOfWork;
         _environment = environment;
         _catalogImageBaseUrl = configuration["CatalogImageBaseUrl"]
             ?? "https://b2b.naifjewellery.com/images/katalog/";
+        _logger = logger;
     }
 
     [HttpGet("excel")]
@@ -38,6 +40,8 @@ public sealed class CustomerCatalogExportController : ControllerBase
         if (catalog is null) return NotFound(new { message = "Müşteri bulunamadı." });
 
         var productImages = await LoadProductImages(catalog.Products, cancellationToken);
+        Response.Headers["X-Catalog-Images-Loaded"] = productImages.Count.ToString();
+        Response.Headers["X-Catalog-Images-Requested"] = catalog.Products.Count.ToString();
         using var workbook = new XLWorkbook();
         var english = IsEnglish(lang);
         AddCustomerProductsSheet(workbook, catalog, english, productImages);
@@ -57,6 +61,8 @@ public sealed class CustomerCatalogExportController : ControllerBase
         if (catalog is null) return NotFound(new { message = "Müşteri bulunamadı." });
 
         var productImages = await LoadProductImages(catalog.Products, cancellationToken);
+        Response.Headers["X-Catalog-Images-Loaded"] = productImages.Count.ToString();
+        Response.Headers["X-Catalog-Images-Requested"] = catalog.Products.Count.ToString();
         var english = IsEnglish(lang);
         QuestPDF.Settings.License = LicenseType.Community;
         var bytes = Document.Create(document =>
@@ -363,8 +369,13 @@ public sealed class CustomerCatalogExportController : ControllerBase
                     using var response = await ImageClient.GetAsync(uri, HttpCompletionOption.ResponseHeadersRead, ct);
                     if (response.IsSuccessStatusCode && response.Content.Headers.ContentType?.MediaType?.StartsWith("image/") == true)
                         return await response.Content.ReadAsByteArrayAsync(ct);
+                    _logger.LogWarning("Katalog görseli indirilemedi. Url: {Url}, Status: {Status}, ContentType: {ContentType}",
+                        uri, (int)response.StatusCode, response.Content.Headers.ContentType?.MediaType);
                 }
-                catch (HttpRequestException) { }
+                catch (HttpRequestException ex)
+                {
+                    _logger.LogWarning(ex, "Katalog görseli HTTP hatası. Url: {Url}", uri);
+                }
                 finally { if (gateEntered) ImageDownloadGate.Release(); }
             }
         }

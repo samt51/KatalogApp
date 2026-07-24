@@ -2,6 +2,7 @@ using KatalogApp.Persistence;
 using KatalogApp.Application;
 using KatalogApp.Infrastructure;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.OpenApi;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -11,7 +12,14 @@ System.Globalization.CultureInfo.DefaultThreadCurrentUICulture = cultureInfo;
 
 builder.Services.AddControllers();
 builder.Services.AddHttpContextAccessor();
-builder.Services.AddSwaggerGen();
+builder.Services.AddSwaggerGen(options =>
+{
+    options.SwaggerDoc("v1", new OpenApiInfo
+    {
+        Title = "KatalogApp API",
+        Version = "1.0.0"
+    });
+});
 builder.Services.AddPersistenceRegistration(builder.Configuration);
 builder.Services.AddApplicationRegistration();
 builder.Services.AddInfrastructureRegistration();
@@ -44,7 +52,11 @@ using (var scope = app.Services.CreateScope())
 }
 
 app.UseSwagger();
-app.UseSwaggerUI();
+app.UseSwaggerUI(options =>
+{
+    options.SwaggerEndpoint("/swagger/v1/swagger.json", "KatalogApp API 1.0.0");
+    options.DocumentTitle = "KatalogApp API 1.0.0";
+});
 
 app.UseHttpsRedirection();
 app.UseStaticFiles();

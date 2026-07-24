@@ -11,7 +11,11 @@ namespace KatalogApp.Persistence
         {
             services.AddDbContext<KatalogAppDbContext>(options =>
                 options.UseSqlServer(configuration.GetConnectionString("DefaultConnection"),
-                    sqlServerOptions => sqlServerOptions.CommandTimeout(600))
+                    sqlServerOptions =>
+                    {
+                        sqlServerOptions.CommandTimeout(600);
+                        sqlServerOptions.UseQuerySplittingBehavior(QuerySplittingBehavior.SplitQuery);
+                    })
                        .ConfigureWarnings(warnings => warnings.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.PendingModelChangesWarning)));
 
             services.AddAutoMapper(typeof(KatalogApp.Application.Registration), typeof(KatalogApp.Persistence.Registration));

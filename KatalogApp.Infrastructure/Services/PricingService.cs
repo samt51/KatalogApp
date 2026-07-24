@@ -50,19 +50,13 @@ namespace KatalogApp.Infrastructure.Services
                 }
             }
 
-            // Cache for purities to avoid db query in loop
-            var purities = await _unitOfWork.GetReadRepository<MetalPurity>().GetAllAsync();
-            var purityMap = purities.ToDictionary(p => p.Id, p => p.Milyem);
-
             foreach (var product in products)
             {
-                decimal milyem = 0.585m; // Default
-                
-                // Base karat milyem for gold cost
-                if (product.MetalPurityId.HasValue && purityMap.ContainsKey(product.MetalPurityId.Value))
-                {
-                    milyem = purityMap[product.MetalPurityId.Value] > 0 ? purityMap[product.MetalPurityId.Value] : 0.585m;
-                }
+                // MetalPurity ürün sorgusunda zaten include ediliyor; her listeleme
+                // isteğinde bütün ayar tablosunu tekrar okumaya gerek yok.
+                decimal milyem = product.MetalPurity?.Milyem is > 0
+                    ? product.MetalPurity.Milyem
+                    : 0.585m;
 
                 // Custom Labor Milyem overrides Product's LaborMultiplier
                 decimal laborMultiplier = product.LaborMultiplier;

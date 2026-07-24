@@ -28,6 +28,8 @@ public sealed class CustomerCatalogExportController : ControllerBase
     private readonly IWebHostEnvironment _environment;
     private readonly string _catalogImageBaseUrl;
     private readonly string? _catalogImageRootPath;
+    private Dictionary<(string Type, int Id), string> _translations = new();
+    private string _translationLanguage = "tr";
 
     public CustomerCatalogExportController(IUnitOfWork unitOfWork, IWebHostEnvironment environment,
         IConfiguration configuration)
@@ -43,6 +45,7 @@ public sealed class CustomerCatalogExportController : ControllerBase
     [HttpGet("~/api/products/catalog-export/excel")]
     public async Task<IActionResult> Excel(int customerId, [FromQuery] string lang, CancellationToken cancellationToken)
     {
+        await LoadTranslations(lang, cancellationToken);
         var catalog = customerId > 0
             ? await BuildCatalog(customerId, cancellationToken)
             : await BuildGeneralCatalog(cancellationToken);
@@ -64,6 +67,7 @@ public sealed class CustomerCatalogExportController : ControllerBase
     [HttpGet("~/api/products/catalog-export/pdf")]
     public async Task<IActionResult> Pdf(int customerId, [FromQuery] string lang, CancellationToken cancellationToken)
     {
+        await LoadTranslations(lang, cancellationToken);
         var catalog = customerId > 0
             ? await BuildCatalog(customerId, cancellationToken)
             : await BuildGeneralCatalog(cancellationToken);
@@ -121,7 +125,7 @@ public sealed class CustomerCatalogExportController : ControllerBase
                                 {
                                     table.ColumnsDefinition(columns => { columns.RelativeColumn(); columns.RelativeColumn(); columns.RelativeColumn(); columns.RelativeColumn(); });
                                     DetailCell(table, english ? "WEIGHT" : "AĞIRLIK", $"{row.Product.Gram:0.####} g");
-                                    DetailCell(table, english ? "PURITY" : "AYAR", row.Product.MetalPurity?.Name ?? "-");
+                                    DetailCell(table, english ? "PURITY" : "AYAR", Tr("MetalPurity", row.Product.MetalPurityId, row.Product.MetalPurity?.Name ?? "-"));
                                     DetailCell(table, english ? "CARAT" : "KARAT", $"{ProductCarat(row):0.####} ct");
                                     DetailCell(table, english ? "COLOR" : "RENK", ProductColor(row));
                                 });
@@ -195,10 +199,12 @@ public sealed class CustomerCatalogExportController : ControllerBase
                 .Include(x => x.ProductStones).ThenInclude(x => x.Stone).ThenInclude(x => x.StoneCut)
                 .Include(x => x.ProductStones).ThenInclude(x => x.Stone).ThenInclude(x => x.StoneSetting).ThenInclude(x => x.Unit),
             cancellationToken: ct);
-        return await query.OrderBy(x => x.Code).ToListAsync(ct);
+        // Yönetim ekranının varsayılan sırası Products.Id artandır. PDF ve Excel
+        // çıktıları da ekrandaki ürünlerle birebir aynı sırada oluşsun.
+        return await query.OrderBy(x => x.Id).ToListAsync(ct);
     }
 
-    private static ProductRow Price(Products p, Users customer, decimal multiplier)
+    private ProductRow Price(Products p, Users customer, decimal multiplier)
     {
         var milyem = p.MetalPurity?.Milyem is > 0 ? p.MetalPurity.Milyem : .585m;
         var goldPrice = p.LiveGoldPrice > 0 ? p.LiveGoldPrice : 150m;
@@ -220,7 +226,13 @@ public sealed class CustomerCatalogExportController : ControllerBase
             var unit = s.StoneSetting?.Unit?.Name ?? "";
             var settingCost = unit.Contains("adet", StringComparison.OrdinalIgnoreCase) || unit.Equals("piece", StringComparison.OrdinalIgnoreCase)
                 ? ps.Quantity * settingPrice : ps.TotalCarat * settingPrice;
-            stones.Add(new StoneRow(s.StoneScale?.Name ?? $"Taş #{s.Id}", s.StoneType?.Name ?? "", s.StoneCut?.Name ?? "", ps.Clarity?.Name ?? s.StoneClarity?.Name ?? "", ps.Color?.Name ?? s.Colors?.Name ?? "", ps.Quantity, ps.Carat, ps.TotalCarat, unitPrice, ps.TotalCarat * unitPrice, unit, settingPrice, settingCost));
+            stones.Add(new StoneRow(
+                Tr("StoneScale", s.StoneScaleId, s.StoneScale?.Name ?? $"Taş #{s.Id}"),
+                Tr("StoneType", s.StoneTypeId, s.StoneType?.Name ?? ""),
+                Tr("StoneCut", s.StoneCutId, s.StoneCut?.Name ?? ""),
+                Tr("StoneClarity", ps.ClarityId ?? s.StoneClarityId, ps.Clarity?.Name ?? s.StoneClarity?.Name ?? ""),
+                Tr("Color", ps.ColorId ?? s.ColorId, ps.Color?.Name ?? s.Colors?.Name ?? ""),
+                ps.Quantity, ps.Carat, ps.TotalCarat, unitPrice, ps.TotalCarat * unitPrice, unit, settingPrice, settingCost));
         }
         var polishing = customer.CustomPolishingCosts?.FirstOrDefault(x => !x.IsDeleted && x.CategoryId.HasValue && p.Categories.Any(c => c.Id == x.CategoryId))
             ?? customer.CustomPolishingCosts?.FirstOrDefault(x => !x.IsDeleted && x.CategoryId == null);
@@ -240,7 +252,7 @@ public sealed class CustomerCatalogExportController : ControllerBase
         var r = 2;
         foreach (var x in catalog.Products)
         {
-            object?[] values = { "", x.Product.Code, Join(x.Product.Categories.Select(c => c.Name)), x.Product.Gram, x.Product.MetalPurity?.Name, ProductCarat(x), ProductColor(x), x.Total };
+            object?[] values = { "", x.Product.Code, Join(x.Product.Categories.Select(c => Tr("Category", c.Id, c.Name))), x.Product.Gram, Tr("MetalPurity", x.Product.MetalPurityId, x.Product.MetalPurity?.Name), ProductCarat(x), ProductColor(x), x.Total };
             for (var c = 0; c < values.Length; c++) ws.Cell(r, c + 1).Value = XLCellValue.FromObject(values[c]);
             if (productImages.TryGetValue(x.Product.Id, out var image))
             {
@@ -336,8 +348,23 @@ public sealed class CustomerCatalogExportController : ControllerBase
         if (colors.Count == 0 && !string.IsNullOrWhiteSpace(row.Product.StoneColor?.Name)) colors.Add(row.Product.StoneColor.Name);
         return Join(colors);
     }
-    private static string ProductColor(ProductRow row) => !string.IsNullOrWhiteSpace(row.Product.MetalColor?.Name)
-        ? row.Product.MetalColor.Name : StoneColors(row);
+    private string ProductColor(ProductRow row) => !string.IsNullOrWhiteSpace(row.Product.MetalColor?.Name)
+        ? Tr("Color", row.Product.MetalColorId, row.Product.MetalColor.Name) : StoneColors(row);
+
+    private async Task LoadTranslations(string? lang, CancellationToken ct)
+    {
+        _translations = new();
+        _translationLanguage = string.IsNullOrWhiteSpace(lang) ? "tr" : lang.Trim().ToLowerInvariant();
+        if (_translationLanguage == "tr") return;
+        var query = await _unitOfWork.GetReadRepository<DefinitionTranslation>()
+            .GetAllQueryAsync(x => !x.IsDeleted && x.LanguageCode == _translationLanguage, cancellationToken: ct);
+        _translations = await query.ToDictionaryAsync(x => new ValueTuple<string, int>(x.EntityType, x.EntityId), x => x.TranslatedName, ct);
+    }
+
+    private string Tr(string type, int? id, string? fallback)
+        => id.HasValue && _translations.TryGetValue((type, id.Value), out var translated)
+            ? translated
+            : fallback ?? string.Empty;
     private static void DetailCell(TableDescriptor table, string label, string value) => table.Cell().Padding(2).Column(column =>
     {
         column.Item().Text(label).FontSize(6).FontColor(QuestPDF.Helpers.Colors.Grey.Medium);

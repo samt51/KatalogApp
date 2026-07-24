@@ -38,6 +38,7 @@ namespace KatalogApp.Application.Features.ProductsFeature.Queries
                     predicate: x => !x.IsDeleted &&
                                     (string.IsNullOrEmpty(request.Code) || x.Code.Contains(request.Code) || x.Name.Contains(request.Code)) &&
                                     (string.IsNullOrEmpty(request.Category) || x.Categories.Any(c => c.Name.Contains(request.Category))) &&
+                                    (!request.CategoryId.HasValue || x.Categories.Any(c => c.Id == request.CategoryId.Value)) &&
                                     (!request.MinGram.HasValue || x.Gram >= request.MinGram.Value) &&
                                     (!request.MaxGram.HasValue || x.Gram <= request.MaxGram.Value) &&
                                     (!request.MinPrice.HasValue || x.TotalCost >= request.MinPrice.Value) &&
@@ -49,6 +50,7 @@ namespace KatalogApp.Application.Features.ProductsFeature.Queries
                     include: q => q.Include(p => p.Categories)
                                    .Include(p => p.MetalPurity)
                                    .Include(p => p.ProductStones).ThenInclude(ps => ps.Stone).ThenInclude(s => s.StoneScale)
+                                   .Include(p => p.ProductStones).ThenInclude(ps => ps.Stone).ThenInclude(s => s.StoneSetting).ThenInclude(s => s.Unit)
                                    .Include(p => p.ProductStones).ThenInclude(ps => ps.Color)
                                    .Include(p => p.ProductStones).ThenInclude(ps => ps.Clarity)
                                    .Include(p => p.ProductMetals).ThenInclude(pm => pm.MetalType)

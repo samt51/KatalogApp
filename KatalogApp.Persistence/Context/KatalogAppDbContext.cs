@@ -47,6 +47,8 @@ namespace KatalogApp.Persistence.Context
         public DbSet<UserActionLog> UserActionLogs { get; set; }
         public DbSet<PolishingCost> PolishingCosts { get; set; }
         public DbSet<Currency> Currencies { get; set; }
+        public DbSet<DefinitionTranslation> DefinitionTranslations { get; set; }
+        public DbSet<CatalogLanguage> CatalogLanguages { get; set; }
     }
 }
 

@@ -9,6 +9,7 @@ namespace KatalogApp.Application.Features.ProductsFeature.Queries
     {
         public string? Code { get; set; }
         public string? Category { get; set; }
+        public int? CategoryId { get; set; }
         public decimal? MinGram { get; set; }
         public decimal? MaxGram { get; set; }
         public decimal? MinPrice { get; set; }

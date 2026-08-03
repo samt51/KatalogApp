@@ -35,8 +35,8 @@ namespace KatalogApp.Application.Features.UsersFeature.Commands.Create
 
 
             
-            if (request.CustomMilyem.HasValue || request.SalesMultiplier.HasValue) {
-                map.PricingProfile = new UserPricingProfile { CustomMilyem = request.CustomMilyem, SalesMultiplier = request.SalesMultiplier };
+            if (request.CustomMilyem.HasValue || request.SalesMultiplier.HasValue || request.B2CMultiplier.HasValue) {
+                map.PricingProfile = new UserPricingProfile { CustomMilyem = request.CustomMilyem, SalesMultiplier = request.SalesMultiplier, B2CMultiplier = request.B2CMultiplier };
             }
             if (request.CustomStonePrices != null && request.CustomStonePrices.Any()) {
                 map.CustomStonePrices = request.CustomStonePrices.Select(x => new UserStonePrice { StoneId = x.StoneId, CustomPrice = x.CustomPrice, CustomSettingPrice = x.CustomSettingPrice }).ToList();

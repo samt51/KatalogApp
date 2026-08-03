@@ -9,5 +9,6 @@ namespace KatalogApp.Domain.Entities
 
         [System.ComponentModel.DataAnnotations.Schema.Column(TypeName = "decimal(18, 4)")]        public decimal? CustomMilyem { get; set; }
         [System.ComponentModel.DataAnnotations.Schema.Column(TypeName = "decimal(18, 4)")]        public decimal? SalesMultiplier { get; set; }
+        [System.ComponentModel.DataAnnotations.Schema.Column(TypeName = "decimal(18, 4)")]        public decimal? B2CMultiplier { get; set; }
     }
 }

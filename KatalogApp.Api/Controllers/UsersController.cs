@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using KatalogApp.Application.Features.UsersFeature.Commands.Create;
 using KatalogApp.Application.Features.UsersFeature.Commands.Update;
 using KatalogApp.Application.Features.UsersFeature.Commands.Delete;
+using KatalogApp.Application.Features.UsersFeature.Commands.ChangePassword;
 using KatalogApp.Application.Features.UsersFeature.Queries.GetAll;
 using KatalogApp.Application.Core.Dtos;
 
@@ -46,6 +47,12 @@ namespace KatalogApp.Api.Controllers
         {
             var response = await _mediator.Send(new DeleteUsersCommandRequest { Id = id });
             return Ok(response);
+        }
+
+        [HttpPost("change-password")]
+        public async Task<ResponseDto<bool>> ChangePassword(ChangePasswordCommandRequest request)
+        {
+            return await _mediator.Send(request);
         }
     }
 }

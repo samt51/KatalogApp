@@ -10,6 +10,7 @@ using System.Security.Claims;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.EntityFrameworkCore;
 
 namespace KatalogApp.Application.Features.AuthFeature.Commands.Login
 {
@@ -30,7 +31,8 @@ namespace KatalogApp.Application.Features.AuthFeature.Commands.Login
             }
 
             var readRepo = _unitOfWork.GetReadRepository<Users>();
-            var user = await readRepo.FindAsync(u => u.Email == request.Email && u.Password == PasswordHash.HashPassword(request.Password));
+            var user = await readRepo.FindAsync(u => u.Email == request.Email && u.Password == PasswordHash.HashPassword(request.Password),
+                include: q => q.Include(x => x.PricingProfile));
 
             if (user == null)
             {
@@ -52,7 +54,8 @@ namespace KatalogApp.Application.Features.AuthFeature.Commands.Login
                     new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
                     new Claim(ClaimTypes.Email, user.Email),
                     new Claim(ClaimTypes.Name, user.FirstName + " " + user.LastName),
-                    new Claim(ClaimTypes.Role, user.RoleId.ToString())
+                    new Claim(ClaimTypes.Role, user.RoleId.ToString()),
+                    new Claim("b2cMultiplier", (user.PricingProfile?.B2CMultiplier is > 0 ? user.PricingProfile.B2CMultiplier.Value : 1m).ToString(System.Globalization.CultureInfo.InvariantCulture))
                 }),
                 Expires = DateTime.UtcNow.AddDays(7),
                 SigningCredentials = new SigningCredentials(new SymmetricSecurityKey(key), SecurityAlgorithms.HmacSha256Signature)

@@ -244,6 +244,10 @@ public sealed class CustomerCatalogExportController : ControllerBase
     private void AddCustomerProductsSheet(XLWorkbook book, Catalog catalog, bool english,
         IReadOnlyDictionary<int, byte[]> productImages)
     {
+        // Excel görselleri piksel, satır yüksekliği punto kullanır (96 DPI'da 7 cm ≈ 265 px / 198.5 pt).
+        const int productImageSizePx = 265;
+        const double productRowHeightPt = 202;
+        const double productImageColumnWidth = 39;
         var ws = book.Worksheets.Add(english ? "Products" : "Ürünler");
         var headers = english
             ? new[] { "Image", "Product Code", "Category", "Weight (g)", "Purity", "Total Carat", "Color", "Total Price ($)" }
@@ -258,16 +262,17 @@ public sealed class CustomerCatalogExportController : ControllerBase
             {
                 try
                 {
-                    ws.AddPicture(new MemoryStream(image)).MoveTo(ws.Cell(r, 1), 4, 4).WithSize(72, 72);
+                    ws.AddPicture(new MemoryStream(image)).MoveTo(ws.Cell(r, 1), 4, 4)
+                        .WithSize(productImageSizePx, productImageSizePx);
                 }
                 catch (Exception)
                 {
                 }
             }
-            ws.Row(r).Height = 58;
+            ws.Row(r).Height = productRowHeightPt;
             r++;
         }
-        ws.Column(1).Width = 13;
+        ws.Column(1).Width = productImageColumnWidth;
         ws.Column(8).Style.NumberFormat.Format = "#,##0.00";
         Finish(ws);
     }
@@ -422,7 +427,7 @@ public sealed class CustomerCatalogExportController : ControllerBase
                 _environment.WebRootPath
             }.Where(root => !string.IsNullOrWhiteSpace(root));
             var exactLocalPath = localRoots
-                .Select(root => Path.GetFullPath(Path.Combine(root!, osRelative)))
+                .SelectMany(root => ImagePathCandidates(root!, osRelative))
                 .FirstOrDefault(System.IO.File.Exists);
             if (exactLocalPath is not null)
                 return await System.IO.File.ReadAllBytesAsync(exactLocalPath, ct);
@@ -483,6 +488,24 @@ public sealed class CustomerCatalogExportController : ControllerBase
         catch
         {
             return null;
+        }
+    }
+
+    private static IEnumerable<string> ImagePathCandidates(string root, string relativePath)
+    {
+        var exactPath = Path.GetFullPath(Path.Combine(root, relativePath));
+        yield return exactPath;
+
+        var extension = Path.GetExtension(exactPath);
+        var pathWithoutExtension = string.IsNullOrWhiteSpace(extension)
+            ? exactPath
+            : exactPath[..^extension.Length];
+
+        foreach (var candidateExtension in new[] { ".jpg", ".jpeg", ".png", ".webp" })
+        {
+            var candidate = pathWithoutExtension + candidateExtension;
+            if (!string.Equals(candidate, exactPath, StringComparison.OrdinalIgnoreCase))
+                yield return candidate;
         }
     }
 

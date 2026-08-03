@@ -4,6 +4,7 @@ using KatalogApp.Persistence.Context;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace KatalogApp.Persistence.Migrations
 {
     [DbContext(typeof(KatalogAppDbContext))]
-    partial class KatalogAppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260802153603_AddNoteAndQuantityToUserActionLogs")]
+    partial class AddNoteAndQuantityToUserActionLogs
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -335,7 +338,7 @@ namespace KatalogApp.Persistence.Migrations
                         new
                         {
                             Id = 1,
-                            CreatedDate = new DateTime(2026, 8, 2, 20, 31, 27, 893, DateTimeKind.Local).AddTicks(8914),
+                            CreatedDate = new DateTime(2026, 8, 2, 18, 36, 2, 347, DateTimeKind.Local).AddTicks(310),
                             IsDeleted = false,
                             ModifyDate = new DateTime(1, 1, 1, 0, 0, 0, 0, DateTimeKind.Unspecified),
                             Name = "USD",
@@ -6459,9 +6462,6 @@ namespace KatalogApp.Persistence.Migrations
 
                     b.Property<DateTime>("ModifyDate")
                         .HasColumnType("datetime2");
-
-                    b.Property<decimal?>("B2CMultiplier")
-                        .HasColumnType("decimal(18,4)");
 
                     b.Property<decimal?>("SalesMultiplier")
                         .HasColumnType("decimal(18,4)");

@@ -17,5 +17,6 @@ namespace KatalogApp.Application.Features.UsersFeature.Dtos
     {
         public decimal? CustomMilyem { get; set; }
         public decimal? SalesMultiplier { get; set; }
+        public decimal? B2CMultiplier { get; set; }
     }
 }

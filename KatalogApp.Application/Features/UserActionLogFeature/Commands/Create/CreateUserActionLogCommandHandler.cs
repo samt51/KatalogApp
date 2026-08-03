@@ -23,6 +23,8 @@ namespace KatalogApp.Application.Features.UserActionLogFeature.Commands.Create
                 ActionType = request.ActionType,
                 ProductId = request.ProductId > 0 ? request.ProductId : null,
                 Details = request.Details,
+                Quantity = request.Quantity,
+                Note = string.IsNullOrWhiteSpace(request.Note) ? null : request.Note.Trim(),
                 IpAddress = request.IpAddress,
                 UserAgent = request.UserAgent
             };

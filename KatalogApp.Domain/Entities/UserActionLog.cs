@@ -21,6 +21,12 @@ namespace KatalogApp.Domain.Entities
         /// <summary>İşlemle ilgili detaylı bilgi veya JSON veri (Örn: Hangi filtrelerle arama yaptı).</summary>
         public string? Details { get; set; }
 
+        /// <summary>Kataloğa ekleme sırasında müşterinin belirttiği adet.</summary>
+        public int? Quantity { get; set; }
+
+        /// <summary>Kataloğa ekleme sırasında müşterinin yazdığı not.</summary>
+        public string? Note { get; set; }
+
         /// <summary>Kullanıcının işlem yaptığı IP Adresi.</summary>
         public string? IpAddress { get; set; }
 

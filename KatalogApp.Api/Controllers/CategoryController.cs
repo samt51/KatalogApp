@@ -63,7 +63,7 @@ namespace KatalogApp.Api.Controllers
         public async Task<IActionResult> Delete(int id)
         {
             var response = await _mediator.Send(new DeleteCategoryCommandRequest { Id = id });
-            return Ok(response);
+            return Ok(new { isSuccess = response, data = response });
         }
     }
 }

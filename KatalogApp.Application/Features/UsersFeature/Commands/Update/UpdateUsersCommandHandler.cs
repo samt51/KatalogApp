@@ -66,10 +66,11 @@ namespace KatalogApp.Application.Features.UsersFeature.Commands.Update
 
 
             // Update Pricing Profile
-            if (request.CustomMilyem.HasValue || request.SalesMultiplier.HasValue) {
+            if (request.CustomMilyem.HasValue || request.SalesMultiplier.HasValue || request.B2CMultiplier.HasValue) {
                 if (entity.PricingProfile == null) entity.PricingProfile = new UserPricingProfile { UserId = entity.Id };
                 entity.PricingProfile.CustomMilyem = request.CustomMilyem;
                 entity.PricingProfile.SalesMultiplier = request.SalesMultiplier;
+                entity.PricingProfile.B2CMultiplier = request.B2CMultiplier;
             } else {
                 if (entity.PricingProfile != null) {
                     await _unitOfWork.GetWriteRepository<UserPricingProfile>().HardDeleteRangeAsync(new List<UserPricingProfile> { entity.PricingProfile });

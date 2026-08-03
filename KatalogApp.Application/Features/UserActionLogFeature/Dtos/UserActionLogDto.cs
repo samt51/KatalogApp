@@ -8,6 +8,8 @@ namespace KatalogApp.Application.Features.UserActionLogFeature.Dtos
         public string ActionType { get; set; }
         public int? ProductId { get; set; }
         public string? Details { get; set; }
+        public int? Quantity { get; set; }
+        public string? Note { get; set; }
         public string? IpAddress { get; set; }
         public string? UserAgent { get; set; }
         public System.DateTime CreatedAt { get; set; }

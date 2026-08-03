@@ -177,7 +177,7 @@ DocProject/Help/Html2
 DocProject/Help/html
 
 # Click-Once directory
-publish/
+# The root publish output is intentionally versioned for deployment.
 
 # Publish Web Output
 *.[Pp]ublish.xml

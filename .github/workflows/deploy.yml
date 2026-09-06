@@ -1,0 +1,98 @@
+name: Deploy API to Production
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: production-api
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build and Test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0.x'
+
+      - name: Restore
+        run: dotnet restore KatalogApp.sln
+
+      - name: Build
+        run: dotnet build KatalogApp.sln -c Release --no-restore
+
+      - name: Test
+        run: dotnet test KatalogApp.sln -c Release --no-build
+
+  deploy:
+    name: Deploy Production
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Configure SSH
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_PORT: ${{ secrets.DEPLOY_PORT }}
+        run: |
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -p "$DEPLOY_PORT" -H "$DEPLOY_HOST" >> ~/.ssh/known_hosts
+
+      - name: Backup database
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_PORT: ${{ secrets.DEPLOY_PORT }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+        run: |
+          ssh -i ~/.ssh/deploy_key \
+            -p "$DEPLOY_PORT" \
+            "$DEPLOY_USER@$DEPLOY_HOST" \
+            "sudo -n /opt/backups/backup-katalogdb.sh"
+
+      - name: Deploy API
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_PORT: ${{ secrets.DEPLOY_PORT }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+        run: |
+          ssh -i ~/.ssh/deploy_key \
+            -p "$DEPLOY_PORT" \
+            "$DEPLOY_USER@$DEPLOY_HOST" << 'EOF'
+              set -e
+
+              cd /opt/apps/KatalogApp
+              git fetch origin master
+              git checkout master
+              git pull --ff-only origin master
+
+              cd /opt/apps/deploy
+              docker compose build api
+              docker compose up -d --no-deps api
+
+              echo "Waiting for API..."
+              sleep 15
+
+              docker compose ps api
+          EOF
+
+      - name: Verify production
+        run: |
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+            https://b2b.naifjewellery.com/)
+
+          echo "Production WEB HTTP status: $STATUS"
+
+          if [ "$STATUS" != "200" ]; then
+            echo "Production verification failed."
+            exit 1
+          fi

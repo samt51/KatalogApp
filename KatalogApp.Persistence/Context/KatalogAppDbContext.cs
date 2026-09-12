@@ -20,9 +20,20 @@ namespace KatalogApp.Persistence.Context
 
 
 
+            modelBuilder.Entity<OrderRecord>().HasKey(o => o.Id);
+            modelBuilder.Entity<OrderRecord>().HasIndex(o => new { o.AccountId, o.RequestId }).IsUnique();
+            modelBuilder.Entity<OrderRecord>().HasIndex(o => o.OrderNumber).IsUnique();
+            modelBuilder.Entity<OrderRecord>().HasIndex(o => o.CreatedUtc);
+            modelBuilder.Entity<OrderRecord>().HasMany(o => o.Items).WithOne().HasForeignKey(i => i.OrderId);
+            modelBuilder.Entity<OrderRecord>().HasOne(o => o.Document).WithOne().HasForeignKey<OrderDocument>(d => d.OrderId);
+            modelBuilder.Entity<OrderRecord>().HasOne<Users>().WithMany().HasForeignKey(o => o.AccountId).OnDelete(DeleteBehavior.Restrict);
+            modelBuilder.Entity<OrderDocument>().HasKey(d => d.OrderId);
             modelBuilder.ApplyConfigurationsFromAssembly(typeof(KatalogAppDbContext).Assembly);
         }
 
+        public DbSet<OrderRecord> Orders { get; set; }
+        public DbSet<OrderLine> OrderLines { get; set; }
+        public DbSet<OrderDocument> OrderDocuments { get; set; }
         public DbSet<Category> Categories { get; set; }
         public DbSet<Colors> Colors { get; set; }
         public DbSet<ProductImage> ProductImages { get; set; }
